@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { createSupabaseAdminClient } from "@/lib/supabase";
 import { approveFix, type ApproveFixParams } from "@/src/api/fixes/approve";
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { success: false, error: "SUPABASE_ADMIN_NOT_CONFIGURED" },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
 
     const params: ApproveFixParams = {

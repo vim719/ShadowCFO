@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Shadow CFO",
-  description: "AI-powered financial decision support",
+  description: "Guided financial decision support with hardened consent, idempotency, and ledger rails",
 };
 
 export default function RootLayout({
