@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hxoxyorvznymwpewapkb.supabase.co';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gxxezkoiyxrnwtdrchtz.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4b3h5b3J2em55bXdwZXdhcGtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzQ5NTUsImV4cCI6MjA5MDg1MDk1NX0.dvcgcomlV8Oc8QVXN6zc0DwYyoNl0LaNq-MDITcB2_Y';
 
 let supabase: SupabaseClient | null = null;
@@ -109,11 +109,11 @@ export default function Dashboard() {
     const sb = getSupabase();
     const accessToken = token || (await sb.auth.getSession()).data.session?.access_token;
     
-    if (!token) return;
+    if (!accessToken) return;
 
     try {
       const res = await fetch('/api/user/data', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       
       if (res.ok) {
