@@ -94,6 +94,7 @@ export default function Dashboard() {
   useEffect(() => {
     // Always load demo data first for instant experience
     handleDemo();
+    setLoading(false);
   }, []);
 
   const checkSession = async () => {
