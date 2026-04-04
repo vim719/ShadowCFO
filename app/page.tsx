@@ -472,12 +472,38 @@ This memo is for educational purposes only. Consult a qualified CPA.
                   onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
                 />
                 
-                <button className="btn-primary" onClick={() => {
-                  if (uploadedFile) {
+                <button className="btn-primary" onClick={async () => {
+                  if (!uploadedFile && !user) {
+                    // For demo mode, just proceed
                     setConnectStep('success');
-                  } else {
-                    setConnectStep('success');
+                    return;
                   }
+                  
+                  try {
+                    // Call analyze API
+                    const sb = getSupabase();
+                    const { data: { session } } = await sb.auth.getSession();
+                    
+                    if (session) {
+                      const formData = new FormData();
+                      formData.append('file', uploadedFile || new Blob(['demo'], { type: 'text/plain' }), 'demo.txt');
+                      
+                      await fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${session.access_token}`,
+                        },
+                        body: formData,
+                      });
+                      
+                      // Refresh user data to get new findings
+                      await fetchUserData(session.access_token);
+                    }
+                  } catch (err) {
+                    console.error('Analysis error:', err);
+                  }
+                  
+                  setConnectStep('success');
                 }}>
                   Analyze Statement
                 </button>
