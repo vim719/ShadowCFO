@@ -1,3 +1,4 @@
+// Redeployed: 2026-04-04
 export default function HomePage() {
   return (
     <main style={{ padding: "2rem", fontFamily: "system-ui, sans-serif" }}>
