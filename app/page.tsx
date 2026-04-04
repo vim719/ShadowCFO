@@ -1,565 +1,452 @@
-import { createSupabaseAdminClient, hasSupabaseAdminEnv, hasSupabaseBrowserEnv } from "../lib/supabase";
+'use client';
 
-export const dynamic = "force-dynamic";
+import { useState } from 'react';
 
-type ReadinessState = "live" | "missing" | "warning";
-
-interface StatusCard {
-  label: string;
-  value: string;
-  state: ReadinessState;
-  detail: string;
+interface Finding {
+  id: string;
+  category: string;
+  badge: string;
+  badgeType: string;
+  amount: string;
+  amountColor?: string;
+  title: string;
+  description: string;
+  action: string;
+  actionLabel: string;
+  solv: number;
+  disclaimer: string;
+  fixed?: boolean;
+  dismissible?: boolean;
 }
 
-interface ActionCard {
-  category: string;
+interface FixQueueItem {
+  id: string;
+  meta: string;
   title: string;
-  impact: string;
-  why: string;
-  how: string;
-  when: string;
-  where: string;
-  steps: string[];
+  amount: string;
+  description: string;
+  action: string;
+  actionLabel: string;
+  solv: number;
   disclaimer: string;
 }
 
-interface SystemSnapshot {
-  cards: StatusCard[];
-  ledgerEntries: number | null;
-  consentChallenges: number | null;
-  credentials: number | null;
-  databaseMessage: string;
+interface SolvHistory {
+  action: string;
+  amount: number;
 }
 
-const actionCards: ActionCard[] = [
-  {
-    category: "Cash Drag",
-    title: "Move idle cash into a high-yield savings account",
-    impact: "$883 / year",
-    why: "Cash sitting at 0.01% silently loses purchasing power while the rest of Sarah's financial life stays fragmented across apps.",
-    how: "Estimate the spread between the linked account's yield and a current high-yield benchmark, then annualize it on the idle balance above buffer.",
-    when: "Act this week if the money is emergency-fund cash and not earmarked for a bill due in the next 30 days.",
-    where: "Inside the existing bank app or the destination HYSA provider Sarah already trusts.",
-    steps: [
-      "Confirm the destination savings account is FDIC-insured and already open.",
-      "Keep the first $500 buffer in checking before moving anything.",
-      "Initiate the transfer directly in the bank interface.",
-      "Mark the action complete and let Shadow CFO verify it on the next sync."
-    ],
-    disclaimer: "Educational information only. Shadow CFO does not move funds for the user."
-  },
-  {
-    category: "Employer Match",
-    title: "Increase 401(k) contribution to the full company match",
-    impact: "$3,200 / year",
-    why: "This is usually the highest-confidence wealth-building action because it captures compensation Sarah has already earned.",
-    how: "Compare current deferral percentage against the employer match ceiling and annualize the missed match.",
-    when: "Before the next payroll cutoff, especially if the plan resets contributions each year.",
-    where: "HR portal, payroll software, or the 401(k) provider dashboard.",
-    steps: [
-      "Open the payroll or benefits settings page.",
-      "Raise the employee contribution from the current rate to the match threshold.",
-      "Save confirmation or screenshot for records.",
-      "Return to Shadow CFO and mark it started or complete."
-    ],
-    disclaimer: "Educational information only. Contribution changes are executed by the user."
-  },
-  {
-    category: "OBBBA",
-    title: "Prepare a CPA memo for a possible overtime deduction",
-    impact: "$3,080 est.",
-    why: "The tax opportunity is material, but qualification depends on facts outside the transaction feed, so this belongs in a CPA-reviewed lane.",
-    how: "Aggregate payroll descriptors that suggest overtime income, then estimate tax impact conservatively at the user's marginal rate.",
-    when: "Before tax filing or any extension decision, not after return submission.",
-    where: "CPA email, tax organizer, or secure document portal.",
-    steps: [
-      "Export the payroll evidence and summary figures.",
-      "Send the memo to the CPA with a note asking for qualification review.",
-      "Wait for CPA confirmation before counting savings as realized.",
-      "Track the outcome as 'needs help' or 'completed by CPA'."
-    ],
-    disclaimer: "Educational information only. Tax treatment must be confirmed by a qualified professional."
-  }
+const QUESTIONS = [
+  { q: "If your savings account earns 0.01% and a high-yield savings account earns 4.8%, what is the annual difference on a $20,000 balance?", opts: ["$2 difference", "$959 difference", "$96 difference", "No difference — they're insured the same"], correct: 1, cat: "Cash management" },
+  { q: "What is an expense ratio?", opts: ["The fee a bank charges for overdrafts", "The annual fee a mutual fund charges as a % of assets", "The interest rate on a mortgage", "A government tax on investments"], correct: 1, cat: "Investment fees" },
+  { q: "Your employer matches 100% of your 401(k) contributions up to 6% of your salary. You contribute 3%. What are you missing?", opts: ["Nothing — 3% is the standard", "A 50% return on unclaimed match", "A guaranteed 100% return on each unclaimed dollar", "Tax penalties"], correct: 2, cat: "Risk comprehension" },
+  { q: "Under the 2025 One Big Beautiful Bill Act (OBBBA), overtime pay is now:", opts: ["Taxed at a higher rate", "Potentially fully deductible from taxable income", "No longer reported to the IRS", "Subject to FICA tax only"], correct: 1, cat: "Tax efficiency" },
+  { q: "What is QSBS (Qualified Small Business Stock)?", opts: ["A type of government bond", "Stock in a startup that may be 100% tax-free after 5 years", "A high-yield savings account", "A retirement account for self-employed people"], correct: 1, cat: "Tax efficiency" },
+  { q: "Your fund charges 0.80% per year. An identical fund charges 0.03%. On a $100,000 portfolio over 30 years at 7% returns, the fee difference costs you approximately:", opts: ["$770", "$7,700", "$77,000", "$770,000"], correct: 2, cat: "Investment fees" },
+  { q: "What is a PTET election?", opts: ["A political vote for tax reform", "A way to deduct state income taxes at entity level, bypassing the SALT cap", "A penalty for late tax filing", "A retirement contribution vehicle"], correct: 1, cat: "Tax efficiency" },
+  { q: "If you have $5,000 in credit card debt at 22% interest and $10,000 in a savings account at 4.8%, what is the optimal move?", opts: ["Keep both — never touch savings", "Pay off the credit card with $5,000 from savings", "Invest the savings in stocks", "Make minimum payments on the card"], correct: 1, cat: "Cash management" },
+  { q: "What is financial 'fee drag'?", opts: ["Interest charged on late payments", "The cumulative loss of returns caused by overpaying for investment products", "Bank fees for wire transfers", "Currency exchange costs"], correct: 1, cat: "Investment fees" },
+  { q: "Under CFPB Section 1033, which went into effect in 2026, you have the legal right to:", opts: ["Sue your bank for overdraft fees", "Share your financial data with any authorized third-party app at no cost", "Receive a government grant for financial literacy", "Opt out of credit bureau reporting"], correct: 1, cat: "Risk comprehension" }
 ];
 
-async function getTableCount(table: string): Promise<number | null> {
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    return null;
-  }
+const FINDINGS: Finding[] = [
+  { id: 'f1', category: 'Cash Drag', badge: 'Cash Drag', badgeType: 'done', amount: '$883', amountColor: 'text-gray-400', title: '$18,400 sitting idle at 0.01% — FIXED', description: 'Moved $18,400 to Marcus HYSA earning 4.8%. You approved this on Monday. Saving $883/year starting now.', action: 'Approved', actionLabel: 'Approved', solv: 10, disclaimer: '', fixed: true, dismissible: false },
+  { id: 'f2', category: 'Fee Drag', badge: 'Fee Drag', badgeType: 'cat', amount: '$1,847', title: 'Your Fidelity fund charges 18× too much', description: 'FBALX charges 0.48%/year. FXAIX tracks the exact same S&P 500 index at 0.015%. On your $205,000 balance, that\'s $1,847 in unnecessary fees per year.', action: 'Approve Swap', actionLabel: 'Approve Swap', solv: 10, disclaimer: 'Educational information only — not investment advice.' },
+  { id: 'f3', category: 'Employer Match', badge: 'Employer Match', badgeType: 'wa', amount: '$3,200', title: "You're leaving $3,200 in free money on the table", description: 'You contribute 3% to your 401(k). Your employer matches 100% up to 6%. Increasing to 6% adds $3,200/year in employer contributions — a guaranteed 100% return on each dollar.', action: 'Increase to 6%', actionLabel: 'Increase to 6%', solv: 25, disclaimer: 'Educational information only. Adjust through your HR portal or Fidelity NetBenefits.' },
+  { id: 'f4', category: 'OBBBA Deduction', badge: 'OBBBA Deduction', badgeType: 'wa', amount: '$3,080 est.', title: '$14,000 in overtime may be deductible under OBBBA', description: 'You received $14,000 in overtime in 2025. Under the One Big Beautiful Bill Act, this income may be fully deductible. At your estimated 22% tax rate, that\'s ~$3,080 in savings.', action: 'Generate CPA Memo', actionLabel: 'Generate CPA Memo', solv: 30, disclaimer: 'Tax deductibility requires CPA review. This memo is educational — not tax advice.' },
+  { id: 'f5', category: 'Auto Loan Interest', badge: 'Auto Loan Interest', badgeType: 'wa', amount: '$2,420 est.', title: 'Your car loan interest may be deductible', description: 'You paid an estimated $2,420 in auto loan interest in 2025. Under OBBBA, qualifying vehicle loan interest up to $10,000 is now deductible. Ask your CPA to verify.', action: 'Add to CPA Memo', actionLabel: 'Add to CPA Memo', solv: 30, disclaimer: 'Deductibility varies. This is educational — not tax advice.', dismissible: true },
+];
 
-  const { count, error } = await supabaseAdmin
-    .from(table)
-    .select("*", { count: "exact", head: true });
+const FIX_QUEUE: FixQueueItem[] = [
+  { id: 'fq1', meta: 'Fee Drag · One Tap · +10 $SOLV', title: 'Switch FBALX → FXAIX (Fidelity 500 Index)', amount: '$1,847', description: "Same S&P 500 exposure. 97% lower cost. We'll show you the Fidelity link to make the switch in under 3 minutes. No tax event triggered by switching within an IRA.", action: 'Approve', actionLabel: 'Approve → +10 $SOLV', solv: 10, disclaimer: 'Educational only. Not investment advice. Review with an advisor if unsure.' },
+  { id: 'fq2', meta: 'Employer Match · Must Do · +25 $SOLV', title: 'Increase 401(k) contribution 3% → 6%', amount: '$3,200', description: 'Your employer matches 100% up to 6%. You\'re at 3%. This is a guaranteed 100% return on each new dollar contributed — the single highest-return action in your Fix Queue.', action: 'Approve', actionLabel: 'Approve → +25 $SOLV', solv: 25, disclaimer: 'Educational only. Adjust through your HR portal or Fidelity NetBenefits.' },
+  { id: 'fq3', meta: 'OBBBA Deductions · Needs CPA · +30 $SOLV', title: 'Send deduction summary to your CPA', amount: '$5,500 est.', description: "We've prepared a 1-page memo covering your $14,000 overtime deduction and $2,420 auto loan interest deduction. Tap to open a pre-filled email ready to send to your CPA before they file.", action: 'Send', actionLabel: 'Send CPA Memo → +30 $SOLV', solv: 30, disclaimer: 'Tax deductibility requires CPA review. This memo is educational — not tax advice.' },
+];
 
-  if (error) {
-    return null;
-  }
+export default function HomePage() {
+  const [activeTab, setActiveTab] = useState<'dash' | 'findings' | 'fixq' | 'solv' | 'quiz'>('dash');
+  const [solvBalance, setSolvBalance] = useState(847);
+  const [score, setScore] = useState(71);
+  const [fixedSum, setFixedSum] = useState(883);
+  const [findings, setFindings] = useState(FINDINGS);
+  const [fixQueue, setFixQueue] = useState(FIX_QUEUE);
+  const [solvHistory, setSolvHistory] = useState<SolvHistory[]>([
+    { action: 'Fixed cash drag on Chase', amount: 10 },
+    { action: 'Emergency fund hit 3 months', amount: 25 },
+    { action: 'Completed Fluency Score quiz', amount: 5 },
+    { action: 'Score improved 10+ points', amount: 10 },
+  ]);
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [quizCorrect, setQuizCorrect] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
+  const [quizDone, setQuizDone] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
-  return count ?? 0;
-}
-
-async function getSystemSnapshot(): Promise<SystemSnapshot> {
-  const hasBrowserEnv = hasSupabaseBrowserEnv();
-  const hasAdminEnv = hasSupabaseAdminEnv();
-
-  const [ledgerEntries, consentChallenges, credentials] = hasAdminEnv
-    ? await Promise.all([
-        getTableCount("shadow_ledger"),
-        getTableCount("consent_challenges"),
-        getTableCount("webauthn_credentials")
-      ])
-    : [null, null, null];
-
-  const databaseConnected =
-    hasAdminEnv &&
-    ledgerEntries !== null &&
-    consentChallenges !== null &&
-    credentials !== null;
-
-  const cards: StatusCard[] = [
-    {
-      label: "Deployment",
-      value: "Vercel live",
-      state: "live",
-      detail: "The app shell is reachable and ready for product UI work."
-    },
-    {
-      label: "Supabase Client",
-      value: hasBrowserEnv ? "Configured" : "Missing env",
-      state: hasBrowserEnv ? "live" : "missing",
-      detail: hasBrowserEnv
-        ? "Browser credentials are present for app-side auth and reads."
-        : "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel."
-    },
-    {
-      label: "Supabase Admin",
-      value: databaseConnected ? "Connected" : hasAdminEnv ? "Check tables" : "Missing env",
-      state: databaseConnected ? "live" : hasAdminEnv ? "warning" : "missing",
-      detail: databaseConnected
-        ? "Server-side checks can read hardened rails and readiness counts."
-        : hasAdminEnv
-          ? "Admin env exists, but one or more tables did not return a count."
-          : "Set SUPABASE_SERVICE_ROLE_KEY in Vercel for server-side health checks."
-    },
-    {
-      label: "Hardened Rails",
-      value: "8 commits complete",
-      state: "live",
-      detail: "Ledger, consent, idempotency, ACH, SOLV guard, ADRs, and API endpoint are all in place."
-    }
-  ];
-
-  const databaseMessage = databaseConnected
-    ? "Live database checks are running against the hardened Shadow CFO tables."
-    : "The command center is ready, but live database verification needs all Supabase env vars and tables in place.";
-
-  return {
-    cards,
-    ledgerEntries,
-    consentChallenges,
-    credentials,
-    databaseMessage
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
   };
-}
 
-function statusTone(state: ReadinessState) {
-  switch (state) {
-    case "live":
-      return {
-        background: "rgba(15, 108, 92, 0.12)",
-        color: "#0b5b4e"
-      };
-    case "warning":
-      return {
-        background: "rgba(138, 90, 23, 0.14)",
-        color: "#7b4c15"
-      };
-    default:
-      return {
-        background: "rgba(151, 47, 47, 0.12)",
-        color: "#8d2828"
-      };
-  }
-}
+  const badgeClass = (type: string) => {
+    switch (type) {
+      case 'done': return 'bg-green-100 text-green-800';
+      case 'go': return 'bg-green-100 text-green-800';
+      case 'wa': return 'bg-amber-100 text-amber-800';
+      default: return 'bg-blue-100 text-blue-800';
+    }
+  };
 
-export default async function HomePage() {
-  const snapshot = await getSystemSnapshot();
+  const approveFinding = (id: string, solv: number, label: string) => {
+    setFindings(prev => prev.map(f => f.id === id ? { ...f, fixed: true, action: 'Approved', actionLabel: 'Approved', dismissible: false } : f));
+    setSolvBalance(prev => prev + solv);
+    setScore(prev => Math.min(100, prev + 5));
+    showToast(`${label} · +${solv} $SOLV`);
+    setSolvHistory(prev => [{ action: label.split('·')[0].trim(), amount: solv }, ...prev]);
+  };
+
+  const dismissFinding = (id: string) => {
+    setFindings(prev => prev.filter(f => f.id !== id));
+  };
+
+  const doFix = (id: string, solv: number, label: string) => {
+    setFixQueue(prev => prev.filter(f => f.id !== id));
+    setSolvBalance(prev => prev + solv);
+    setScore(prev => Math.min(100, prev + 5));
+    showToast(`${label.split('·')[0].trim()} · +${solv} $SOLV`);
+    setSolvHistory(prev => [{ action: label.split('·')[0].trim().replace('→', '').trim(), amount: solv }, ...prev]);
+  };
+
+  const dismissFix = (id: string) => {
+    setFixQueue(prev => prev.filter(f => f.id !== id));
+  };
+
+  const selectQuizOption = (optIndex: number) => {
+    if (quizAnswers[quizIndex] !== undefined) return;
+    const newAnswers = [...quizAnswers, optIndex];
+    setQuizAnswers(newAnswers);
+    if (optIndex === QUESTIONS[quizIndex].correct) {
+      setQuizCorrect(prev => prev + 1);
+    }
+  };
+
+  const nextQuestion = () => {
+    if (quizIndex < QUESTIONS.length - 1) {
+      setQuizIndex(prev => prev + 1);
+    } else {
+      setQuizDone(true);
+    }
+  };
+
+  const solvPct = Math.min((solvBalance / 1000) * 100, 100);
+  const solvToArchitect = Math.max(0, 1000 - solvBalance);
+  const isArchitect = solvBalance >= 1000;
 
   return (
-    <main
-      style={{
-        padding: "32px 18px 72px",
-        maxWidth: "1280px",
-        margin: "0 auto"
-      }}
-    >
-      <section
-        style={{
-          background: "linear-gradient(145deg, rgba(255,250,242,0.92), rgba(240,233,220,0.88))",
-          border: "1px solid var(--line)",
-          borderRadius: "var(--radius-xl)",
-          boxShadow: "var(--shadow)",
-          overflow: "hidden"
-        }}
-      >
-        <div
-          style={{
-            padding: "28px 24px 18px",
-            borderBottom: "1px solid var(--line)",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "16px",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}
-        >
-          <div style={{ maxWidth: "760px" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "7px 12px",
-                borderRadius: "999px",
-                background: "rgba(15, 108, 92, 0.1)",
-                color: "var(--accent-strong)",
-                fontSize: "12px",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase"
-              }}
-            >
-              Shadow CFO Command Center
-            </div>
-            <h1
-              style={{
-                margin: "18px 0 10px",
-                fontFamily: "var(--font-display), serif",
-                fontSize: "clamp(2.8rem, 7vw, 5.4rem)",
-                lineHeight: 0.94,
-                letterSpacing: "-0.04em",
-                fontWeight: 600
-              }}
-            >
-              Guided money intelligence, with hardened rails underneath.
-            </h1>
-            <p
-              style={{
-                margin: 0,
-                maxWidth: "62ch",
-                fontSize: "1.05rem",
-                lineHeight: 1.7,
-                color: "var(--muted)"
-              }}
-            >
-              The live app now reflects the real Shadow CFO direction: explain what matters, show the exact next step,
-              and keep ledger, consent, idempotency, and compliance protections in the foundation.
-            </p>
-          </div>
+    <main className="min-h-screen bg-gray-50 p-4 md:p-8">
+      {toast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-neutral-900 text-white px-4 py-2 rounded-lg text-sm font-medium z-50 animate-fade-in">
+          {toast}
+        </div>
+      )}
 
-          <div
-            style={{
-              minWidth: "260px",
-              padding: "18px",
-              borderRadius: "var(--radius-lg)",
-              background: "rgba(255,255,255,0.56)",
-              border: "1px solid var(--line)"
-            }}
-          >
-            <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", marginBottom: "6px" }}>
-              Current Focus
-            </div>
-            <div style={{ fontSize: "1.35rem", fontWeight: 700, marginBottom: "8px" }}>
-              App layer on top of the hardened backend
-            </div>
-            <div style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-              Next.js UI is now the active build surface. Supabase wiring is surfaced here so we can quickly see whether the live environment is ready.
-            </div>
-          </div>
+      <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div className="bg-gray-50 border-b border-gray-200 flex overflow-x-auto">
+          {[
+            { id: 'dash', label: 'Dashboard' },
+            { id: 'findings', label: 'Findings' },
+            { id: 'fixq', label: 'Fix Queue', count: fixQueue.length },
+            { id: 'solv', label: '$SOLV' },
+            { id: 'quiz', label: 'Fluency Quiz' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'text-blue-600 border-blue-600'
+                  : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="ml-1.5 bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "14px",
-            padding: "18px 24px 26px"
-          }}
-        >
-          {snapshot.cards.map((card) => {
-            const tone = statusTone(card.state);
-            return (
-              <article
-                key={card.label}
-                style={{
-                  padding: "18px",
-                  borderRadius: "var(--radius-lg)",
-                  background: "rgba(255,255,255,0.62)",
-                  border: "1px solid var(--line)",
-                  minHeight: "168px"
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" }}>
-                  <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)" }}>
-                    {card.label}
+        <div className="p-5 space-y-4">
+          {activeTab === 'dash' && (
+            <div className="space-y-4">
+              <div>
+                <h1 className="text-lg font-medium">Good morning, Sarah <span className="font-normal text-gray-500 text-sm">— 11 days left in trial</span></h1>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1 bg-gray-50 rounded-xl border border-gray-200 p-4 flex gap-4">
+                  <div className="text-5xl font-medium text-green-600 leading-none">{score}</div>
+                  <div className="flex-1">
+                    <div className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">Solvency Score</div>
+                    <div className="text-sm font-medium text-green-600">+13 this month</div>
+                    <div className="text-xs text-gray-500 mb-2">Cash drag fixed — $883/year recovered</div>
+                    <div className="h-1 bg-gray-200 rounded-full">
+                      <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${score}%` }} />
+                    </div>
                   </div>
-                  <span
-                    style={{
-                      padding: "5px 10px",
-                      borderRadius: "999px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      background: tone.background,
-                      color: tone.color
-                    }}
-                  >
-                    {card.value}
+                </div>
+                <div className="w-48 bg-gray-50 rounded-xl border border-gray-200 p-4">
+                  <div className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-2">Total found</div>
+                  <div className="text-xl font-medium text-red-600 mb-3">$11,430/yr</div>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between text-gray-600"><span>Cash drag</span><span>$883</span></div>
+                    <div className="flex justify-between text-gray-600"><span>Fee drag</span><span>$1,847</span></div>
+                    <div className="flex justify-between text-gray-600"><span>Match gap</span><span>$3,200</span></div>
+                    <div className="flex justify-between text-gray-600"><span>OBBBA</span><span>$5,500</span></div>
+                    <div className="flex justify-between font-medium pt-1.5 border-t border-gray-200"><span>Fixed ✓</span><span className="text-green-600">${fixedSum}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={() => setActiveTab('fixq')} className="w-full bg-amber-50 border border-amber-200 rounded-lg p-3 flex justify-between items-center hover:bg-amber-100 transition-colors">
+                <div>
+                  <div className="text-sm font-medium text-amber-800">{fixQueue.length} fixes ready — one tap each</div>
+                  <div className="text-xs text-amber-700">Takes under 2 minutes · Earns $SOLV</div>
+                </div>
+                <div className="text-amber-800 text-xl">→</div>
+              </button>
+
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex gap-1.5">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeClass('cat')}`}>Fee Drag</span>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeClass('go')}`}>One Tap</span>
+                  </div>
+                  <div className="text-2xl font-medium text-green-600">$1,847 <span className="text-xs text-gray-400 font-normal">/ yr</span></div>
+                </div>
+                <div className="text-sm font-medium mb-1">Your Fidelity fund charges 18× too much</div>
+                <div className="text-sm text-gray-600 mb-3">FBALX charges 0.48%/year. FXAIX tracks the same S&P 500 index at 0.015%. On your $205K balance, that&apos;s $1,847 in unnecessary fees every year.</div>
+                <div className="flex gap-2">
+                  <button onClick={() => setActiveTab('findings')} className="bg-blue-600 text-white text-xs font-medium px-3 py-2 rounded-lg hover:opacity-85 transition-opacity">See Swap Option</button>
+                  <button className="bg-transparent text-gray-500 text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">Learn more</button>
+                </div>
+                <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">Educational information only — not investment advice.</div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'findings' && (
+            <div className="space-y-4">
+              <div>
+                <h1 className="text-lg font-medium">Your findings</h1>
+                <p className="text-sm text-gray-500">Total: <strong className="text-green-600">$11,430/year</strong> across 5 leakage categories</p>
+              </div>
+
+              {findings.map(finding => (
+                <div key={finding.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex gap-1.5">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeClass(finding.badgeType)}`}>{finding.badge}</span>
+                      {finding.fixed && <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeClass('done')}`}>Fixed ✓</span>}
+                    </div>
+                    <div className={`text-2xl font-medium ${finding.amountColor || 'text-green-600'}`}>
+                      {finding.amount} <span className="text-xs text-gray-400 font-normal">/ yr</span>
+                    </div>
+                  </div>
+                  <div className={`text-sm font-medium mb-1 ${finding.fixed ? 'text-gray-400' : ''}`}>{finding.title}</div>
+                  <div className="text-sm text-gray-600 mb-3">{finding.description}</div>
+                  <div className="flex gap-2">
+                    {finding.fixed ? (
+                      <button disabled className="bg-green-500 text-white text-xs font-medium px-3 py-2 rounded-lg cursor-default opacity-70">Approved ✓</button>
+                    ) : (
+                      <>
+                        <button onClick={() => approveFinding(finding.id, finding.solv, finding.actionLabel)} className="bg-blue-600 text-white text-xs font-medium px-3 py-2 rounded-lg hover:opacity-85 transition-opacity">{finding.action}</button>
+                        {finding.dismissible && <button onClick={() => dismissFinding(finding.id)} className="bg-transparent text-gray-500 text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">Dismiss</button>}
+                      </>
+                    )}
+                  </div>
+                  {finding.disclaimer && <div className="text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">{finding.disclaimer}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'fixq' && (
+            <div className="space-y-4">
+              <div>
+                <h1 className="text-lg font-medium">Fix Queue</h1>
+                <p className="text-sm text-gray-500">Review and approve. Every fix earns $SOLV.</p>
+              </div>
+
+              {fixQueue.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 text-sm">All caught up. We&apos;re monitoring for new opportunities.</div>
+              ) : (
+                fixQueue.map(item => (
+                  <div key={item.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                    <div className="text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">{item.meta}</div>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-medium text-sm">{item.title}</div>
+                      <div className="text-xl font-medium text-green-600 whitespace-nowrap">{item.amount} <span className="text-xs text-gray-400 font-normal">/ yr</span></div>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-3">{item.description}</div>
+                    <div className="flex gap-2">
+                      <button onClick={() => doFix(item.id, item.solv, item.actionLabel)} className="bg-blue-600 text-white text-xs font-medium px-3 py-2 rounded-lg hover:opacity-85 transition-opacity">{item.actionLabel}</button>
+                      <button onClick={() => dismissFix(item.id)} className="bg-transparent text-gray-500 text-xs px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50">Dismiss</button>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-2">{item.disclaimer}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === 'solv' && (
+            <div className="space-y-4">
+              <div>
+                <h1 className="text-lg font-medium">Your $SOLV</h1>
+                <p className="text-sm text-gray-500">Earned through financial health actions. Soul-bound — cannot be transferred or sold.</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Balance</div>
+                    <div className="text-2xl font-medium text-blue-600">{solvBalance} $SOLV</div>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${isArchitect ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {isArchitect ? 'Architect' : 'Protector'}
                   </span>
                 </div>
-                <p style={{ margin: "18px 0 0", fontSize: "0.98rem", lineHeight: 1.65, color: "var(--muted)" }}>
-                  {card.detail}
-                </p>
-              </article>
-            );
-          })}
-        </div>
-      </section>
+                <div className="h-1.5 bg-gray-200 rounded-full mb-2">
+                  <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${solvPct}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>500 — Protector</span>
+                  <span className="text-blue-600 font-medium">{solvToArchitect > 0 ? `${solvToArchitect} to Architect` : 'Architect unlocked!'}</span>
+                  <span>1,000 — Architect</span>
+                </div>
+              </div>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.7fr) minmax(280px, 0.9fr)",
-          gap: "18px",
-          marginTop: "22px"
-        }}
-      >
-        <div
-          style={{
-            background: "var(--surface)",
-            backdropFilter: "blur(12px)",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--radius-xl)",
-            boxShadow: "var(--shadow)",
-            padding: "24px"
-          }}
-        >
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", marginBottom: "8px" }}>
-              Sarah View
-            </div>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-display), serif",
-                fontSize: "clamp(2rem, 4vw, 3rem)",
-                lineHeight: 1
-              }}
-            >
-              Guided Action Queue
-            </h2>
-            <p style={{ margin: "12px 0 0", color: "var(--muted)", lineHeight: 1.7 }}>
-              This is the product lane we scoped: explain each action clearly, tell Sarah where it lives, and let her execute it herself.
-            </p>
-          </div>
-
-          <div style={{ display: "grid", gap: "16px" }}>
-            {actionCards.map((card) => (
-              <article
-                key={card.title}
-                style={{
-                  background: "var(--surface-strong)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "var(--radius-lg)",
-                  padding: "20px"
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", alignItems: "flex-start" }}>
+              <div className="text-sm font-medium">Architect tier unlocks (1,000 $SOLV)</div>
+              {[
+                { name: 'Alt Alpha Pool', desc: 'Private credit and real estate access' },
+                { name: 'Priority scanning', desc: 'Real-time account monitoring' },
+                { name: 'Trump Account setup', desc: 'Automated generational wealth for your children' },
+              ].map((unlock, i) => (
+                <div key={i} className="bg-white rounded-lg border border-gray-200 p-3 flex justify-between items-center">
                   <div>
-                    <div
-                      style={{
-                        display: "inline-flex",
-                        padding: "5px 10px",
-                        borderRadius: "999px",
-                        background: "var(--accent-soft)",
-                        color: "var(--accent-strong)",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em"
-                      }}
-                    >
-                      {card.category}
-                    </div>
-                    <h3 style={{ margin: "12px 0 0", fontSize: "1.35rem", lineHeight: 1.2 }}>
-                      {card.title}
-                    </h3>
+                    <div className="text-sm font-medium">{unlock.name}</div>
+                    <div className="text-xs text-gray-500">{unlock.desc}</div>
                   </div>
-                  <div
-                    style={{
-                      minWidth: "120px",
-                      padding: "12px 14px",
-                      borderRadius: "16px",
-                      background: "rgba(15, 108, 92, 0.08)",
-                      color: "var(--accent-strong)",
-                      fontWeight: 700,
-                      textAlign: "right"
-                    }}
-                  >
-                    {card.impact}
-                  </div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isArchitect ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {isArchitect ? 'Unlocked ✓' : `${solvToArchitect} away`}
+                  </span>
                 </div>
+              ))}
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                    gap: "12px",
-                    marginTop: "18px"
-                  }}
-                >
-                  {[
-                    ["Why", card.why],
-                    ["How", card.how],
-                    ["When", card.when],
-                    ["Where", card.where]
-                  ].map(([label, text]) => (
-                    <div
-                      key={label}
-                      style={{
-                        padding: "14px",
-                        borderRadius: "16px",
-                        background: "rgba(244, 239, 228, 0.75)",
-                        border: "1px solid var(--line)"
-                      }}
-                    >
-                      <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", marginBottom: "8px" }}>
-                        {label}
+              <div className="text-sm font-medium">Earning history</div>
+              {solvHistory.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-600">{item.action}</span>
+                  <span className="text-green-600 font-medium">+{item.amount}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'quiz' && (
+            <div className="space-y-4">
+              {!quizDone ? (
+                <>
+                  <div>
+                    <h1 className="text-lg font-medium">Financial Fluency Score</h1>
+                    <p className="text-sm text-gray-500">3 minutes · 10 questions · Free — no account needed</p>
+                  </div>
+
+                  <div className="h-1 bg-gray-200 rounded-full">
+                    <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${((quizIndex + 1) / 10) * 100}%` }} />
+                  </div>
+
+                  <div className="flex justify-between text-xs text-gray-400 mb-3">
+                    <span>Question {quizIndex + 1} of 10</span>
+                    <span className="font-medium text-blue-600">Score: {quizCorrect}</span>
+                  </div>
+
+                  <div className="text-base font-medium leading-relaxed">{QUESTIONS[quizIndex].q}</div>
+
+                  <div className="space-y-2">
+                    {QUESTIONS[quizIndex].opts.map((opt, i) => {
+                      const answered = quizAnswers[quizIndex] !== undefined;
+                      const isCorrect = i === QUESTIONS[quizIndex].correct;
+                      const isSelected = quizAnswers[quizIndex] === i;
+                      let className = 'p-3 border border-gray-200 rounded-lg cursor-pointer text-sm transition-colors hover:border-blue-500 hover:bg-blue-50';
+                      if (answered) {
+                        if (isCorrect) className = 'p-3 border border-green-500 bg-green-50 text-green-800 rounded-lg text-sm font-medium';
+                        else if (isSelected) className = 'p-3 border border-red-500 bg-red-50 text-red-800 rounded-lg text-sm';
+                        else className = 'p-3 border border-gray-200 rounded-lg text-sm text-gray-400';
+                      }
+                      return (
+                        <div key={i} onClick={() => selectQuizOption(i)} className={className}>{opt}</div>
+                      );
+                    })}
+                  </div>
+
+                  {quizAnswers[quizIndex] !== undefined && (
+                    <div className="flex justify-end">
+                      <button onClick={nextQuestion} className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-85 transition-opacity">
+                        {quizIndex < QUESTIONS.length - 1 ? 'Next →' : 'See Results'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="text-5xl font-medium text-amber-600 mb-2">{Math.round((quizCorrect / 10) * 100)}</div>
+                  <div className="text-xs font-medium uppercase tracking-wide text-gray-400">Your Financial Fluency Score</div>
+                  <div className="text-sm text-gray-500 mt-2 mb-4">
+                    {quizCorrect >= 7 ? "Strong foundation — let's find and fix your specific leaks." :
+                     quizCorrect >= 5 ? "You know more than most — but there are gaps costing you money." :
+                     "Significant gaps identified. The good news: they're all fixable automatically."}
+                  </div>
+
+                  <div className="space-y-2 text-left mb-4">
+                    {[
+                      { label: 'Risk comprehension', score: 50 },
+                      { label: 'Tax efficiency', score: 30 },
+                      { label: 'Cash management', score: 80 },
+                      { label: 'Investment fees', score: 60 },
+                    ].map((bar, i) => (
+                      <div key={i} className="flex items-center gap-3 text-xs">
+                        <span className="w-28 text-gray-500">{bar.label}</span>
+                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full">
+                          <div className={`h-full rounded-full ${bar.score >= 70 ? 'bg-green-500' : bar.score >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${bar.score}%` }} />
+                        </div>
                       </div>
-                      <div style={{ color: "var(--ink)", lineHeight: 1.65 }}>{text}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ marginTop: "16px" }}>
-                  <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", marginBottom: "10px" }}>
-                    Exact Next Steps
-                  </div>
-                  <ol style={{ margin: 0, paddingLeft: "20px", color: "var(--ink)", lineHeight: 1.8 }}>
-                    {card.steps.map((step) => (
-                      <li key={step}>{step}</li>
                     ))}
-                  </ol>
-                </div>
+                  </div>
 
-                <div
-                  style={{
-                    marginTop: "16px",
-                    paddingTop: "14px",
-                    borderTop: "1px solid var(--line)",
-                    fontSize: "0.92rem",
-                    color: "var(--muted)"
-                  }}
-                >
-                  {card.disclaimer}
+                  <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 mb-4">
+                    Based on your score, we estimate you have <strong className="text-green-600">$8,200–$14,000</strong> in annual financial leakage. Connect your accounts to find the exact amount.
+                  </div>
+
+                  <button onClick={() => showToast('Sign up at shadowcfo.com to connect your accounts')} className="w-full bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-85 transition-opacity">
+                    Find My Exact Leakage →
+                  </button>
                 </div>
-              </article>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </div>
+      </div>
 
-        <aside
-          style={{
-            display: "grid",
-            gap: "18px"
-          }}
-        >
-          <section
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
-              borderRadius: "var(--radius-xl)",
-              boxShadow: "var(--shadow)",
-              padding: "22px"
-            }}
-          >
-            <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", marginBottom: "8px" }}>
-              Live System Readiness
-            </div>
-            <h3 style={{ margin: 0, fontSize: "1.5rem", lineHeight: 1.15 }}>
-              Infrastructure snapshot
-            </h3>
-            <p style={{ margin: "12px 0 18px", color: "var(--muted)", lineHeight: 1.7 }}>
-              {snapshot.databaseMessage}
-            </p>
-
-            <div style={{ display: "grid", gap: "12px" }}>
-              {[
-                ["Ledger entries", snapshot.ledgerEntries],
-                ["Consent challenges", snapshot.consentChallenges],
-                ["WebAuthn credentials", snapshot.credentials]
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: "16px",
-                    border: "1px solid var(--line)",
-                    background: "rgba(255,255,255,0.62)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "16px",
-                    alignItems: "center"
-                  }}
-                >
-                  <span style={{ color: "var(--muted)" }}>{label}</span>
-                  <strong style={{ fontSize: "1.15rem" }}>
-                    {value === null ? "Pending" : value}
-                  </strong>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--line)",
-              borderRadius: "var(--radius-xl)",
-              boxShadow: "var(--shadow)",
-              padding: "22px"
-            }}
-          >
-            <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", marginBottom: "8px" }}>
-              Guardrails
-            </div>
-            <h3 style={{ margin: 0, fontSize: "1.5rem", lineHeight: 1.15 }}>
-              What the platform enforces
-            </h3>
-            <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
-              {[
-                "No duplicate request IDs for the same user action.",
-                "No fund-adjacent action without consent proof.",
-                "No score improvement before settlement state.",
-                "No SOLV-based subscription discount under ADR-001."
-              ].map((item) => (
-                <div
-                  key={item}
-                  style={{
-                    padding: "14px 16px",
-                    borderRadius: "16px",
-                    background: "rgba(15, 108, 92, 0.08)",
-                    color: "var(--accent-strong)",
-                    lineHeight: 1.55
-                  }}
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-          </section>
-        </aside>
-      </section>
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out; }
+      `}</style>
     </main>
   );
 }
