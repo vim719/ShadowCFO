@@ -125,12 +125,7 @@ export default function Dashboard() {
   const [connectStep, setConnectStep] = useState<'method' | 'uploading' | 'success'>('method');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    // Always load demo data first for instant experience
-    handleDemo();
-  }, []);
-  
-  // user is initialized with demo data, so no loading state needed
+  // user already initialized with demo data - no useEffect needed
 
   const checkSession = async () => {
     const sb = getSupabase();
