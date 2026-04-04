@@ -101,6 +101,9 @@ export default function Dashboard() {
     
     if (session) {
       await fetchUserData(session.access_token);
+    } else {
+      // No session - auto-load demo data for instant experience
+      handleDemo();
     }
     setLoading(false);
   };
@@ -109,7 +112,11 @@ export default function Dashboard() {
     const sb = getSupabase();
     const accessToken = token || (await sb.auth.getSession()).data.session?.access_token;
     
-    if (!accessToken) return;
+    if (!accessToken) {
+      // No token - load demo data
+      handleDemo();
+      return;
+    }
 
     try {
       const res = await fetch('/api/user/data', {
@@ -118,6 +125,14 @@ export default function Dashboard() {
       
       if (res.ok) {
         const data = await res.json();
+        
+        // Check if user has any data - if not, load demo
+        const hasData = data.findings?.length > 0 || data.actions?.length > 0;
+        
+        if (!hasData) {
+          handleDemo();
+          return;
+        }
         
         const trialDays = data.profile?.trial_ends_at 
           ? Math.max(0, Math.ceil((new Date(data.profile.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
