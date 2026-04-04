@@ -154,26 +154,40 @@ export default function Dashboard() {
   };
 
   const handleDemo = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/demo', { method: 'POST' });
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || 'Demo failed');
-        setLoading(false);
-        return;
-      }
-
-      if (data.session) {
-        const sb = getSupabase();
-        await sb.auth.setSession(data.session);
-        await fetchUserData(data.session.access_token);
-      }
-    } catch (error) {
-      console.error('Demo error:', error);
-      setLoading(false);
-    }
+    // Use client-side demo data for instant demo
+    setUser({
+      profile: {
+        name: 'Sarah',
+        email: 'sarah.demo@shadowcfo.app',
+        is_demo: true,
+        trial_days_left: 11,
+        solv_balance: 847,
+        solvency_score: 71,
+      },
+      findings: [
+        { id: '1', category: 'cash_drag', title: '$18,400 sitting idle at 0.01% — FIXED', description: 'Moved $18,400 to Marcus HYSA earning 4.8%. Saving $883/year starting now.', impact_amount_display: '$883', status: 'fixed', badge: 'Fixed', badge_color: 'green', disclaimer: null },
+        { id: '2', category: 'fee_drag', title: 'Your Fidelity fund charges 18× too much', description: 'FBALX charges 0.48%/year. FXAIX tracks the same index at 0.015%. On your $205,000 balance, that\'s $1,847 in unnecessary fees per year.', impact_amount_display: '$1,847', status: 'active', badge: 'One Tap', badge_color: 'green', disclaimer: 'Educational only.' },
+        { id: '3', category: 'employer_match', title: "You're leaving $3,200 in free money on the table", description: 'You contribute 3% to your 401(k). Your employer matches 100% up to 6%. Increasing to 6% adds $3,200/year.', impact_amount_display: '$3,200', status: 'active', badge: 'High Priority', badge_color: 'amber', disclaimer: 'Adjust through HR portal.' },
+        { id: '4', category: 'obbba', title: '$14,000 in overtime may be deductible under OBBBA', description: 'You received $14,000 in overtime in 2025. Under OBBBA, this may be fully deductible.', impact_amount_display: '$3,080', status: 'active', badge: 'Needs CPA', badge_color: 'amber', disclaimer: 'CPA review required.' },
+        { id: '5', category: 'auto_loan', title: 'Your car loan interest may be deductible', description: 'You paid an estimated $2,420 in auto loan interest in 2025. Under OBBBA, qualifying interest may be deductible.', impact_amount_display: '$2,420', status: 'active', badge: 'OBBBA', badge_color: 'amber', disclaimer: 'Deductibility varies.' },
+      ],
+      actions: [
+        { id: '1', title: 'Switch FBALX → FXAIX', description: 'Same S&P 500 exposure. 97% lower cost.', impact_amount_display: '$1,847', meta: 'Fee Drag · One Tap', solv_reward: 10, status: 'pending' },
+        { id: '2', title: 'Increase 401(k) 3% → 6%', description: 'Guaranteed 100% return on each dollar.', impact_amount_display: '$3,200', meta: 'Employer Match', solv_reward: 25, status: 'pending' },
+        { id: '3', title: 'Send deduction summary to CPA', description: 'We\'ve prepared a 1-page memo.', impact_amount_display: '$5,500', meta: 'OBBBA Deductions', solv_reward: 30, status: 'pending' },
+      ],
+      solvHistory: [
+        { id: '1', action: 'Fixed cash drag on Chase', amount: 10 },
+        { id: '2', action: 'Emergency fund hit 3 months', amount: 25 },
+        { id: '3', action: 'Completed Fluency Score quiz', amount: 5 },
+        { id: '4', action: 'Score improved 10+ points', amount: 10 },
+      ],
+      stats: {
+        totalLeakage: 1034700,
+        fixedAmount: 88300,
+        pendingActions: 3,
+      },
+    });
   };
 
   const handleLogin = async (e: React.FormEvent) => {
