@@ -107,7 +107,7 @@ export default function Dashboard() {
 
   const fetchUserData = async (token?: string) => {
     const sb = getSupabase();
-    const token = token || (await sb.auth.getSession()).data.session?.access_token;
+    const accessToken = token || (await sb.auth.getSession()).data.session?.access_token;
     
     if (!token) return;
 
