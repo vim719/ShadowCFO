@@ -70,6 +70,7 @@ const QUESTIONS = [
 ];
 
 export default function Dashboard() {
+  // Demo data loaded directly for instant experience - no waiting!
   // Initialize with demo data for instant experience
   const [user, setUser] = useState<UserData>({
     profile: {
