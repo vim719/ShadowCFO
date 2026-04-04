@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -10,10 +9,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = await request.json();
 
     if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -25,17 +21,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      // Check if user already exists (email taken)
-      if (error.message.includes('already')) {
-        return NextResponse.json(
-          { error: 'An account with this email already exists' },
-          { status: 400 }
-        );
-      }
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Create user profile
+    // Create profile
     if (data.user) {
       await supabase.from('user_profiles').insert({
         id: data.user.id,
@@ -51,9 +40,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ user: data.user });
   } catch (error) {
     console.error('Signup error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

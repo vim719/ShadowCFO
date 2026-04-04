@@ -1,6 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hxoxyorvznymwpewapkb.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4b3h5b3J2em55bXdwZXdhcGtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzQ5NTUsImV4cCI6MjA5MDg1MDk1NX0.dvcgcomlV8Oc8QVXN6zc0DwYyoNl0LaNq-MDITcB2_Y';
+
+let supabase: SupabaseClient | null = null;
+
+function getSupabase() {
+  if (!supabase) {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabase;
+}
 
 interface Finding {
   id: string;
@@ -8,10 +21,9 @@ interface Finding {
   title: string;
   description: string;
   impact_amount_display: string;
-  priority: string;
   status: 'active' | 'fixed' | 'dismissed';
   badge: string | null;
-  badge_color: string;
+  badge_color: string | null;
   disclaimer: string | null;
 }
 
@@ -22,126 +34,27 @@ interface FixAction {
   impact_amount_display: string;
   meta: string;
   solv_reward: number;
-  status: 'pending' | 'started' | 'completed' | 'dismissed';
+  status: 'pending' | 'completed' | 'dismissed';
 }
 
-interface UserProfile {
-  name: string;
-  email: string;
-  is_demo: boolean;
-  trial_days_left: number;
-  solv_balance: number;
-  solvency_score: number;
+interface UserData {
+  profile: {
+    name: string;
+    email: string;
+    is_demo: boolean;
+    trial_days_left: number;
+    solv_balance: number;
+    solvency_score: number;
+  };
+  findings: Finding[];
+  actions: FixAction[];
+  solvHistory: Array<{ id: string; action: string; amount: number }>;
+  stats: {
+    totalLeakage: number;
+    fixedAmount: number;
+    pendingActions: number;
+  };
 }
-
-const DEMO_USER: UserProfile = {
-  name: 'Sarah',
-  email: 'sarah@example.com',
-  is_demo: true,
-  trial_days_left: 11,
-  solv_balance: 847,
-  solvency_score: 71,
-};
-
-const INITIAL_FINDINGS: Finding[] = [
-  {
-    id: '1',
-    category: 'cash_drag',
-    title: '$18,400 sitting idle at 0.01% — FIXED',
-    description: 'Moved $18,400 to Marcus HYSA earning 4.8%. You approved this on Monday. Saving $883/year starting now.',
-    impact_amount_display: '$883',
-    priority: 'high',
-    status: 'fixed',
-    badge: 'Fixed',
-    badge_color: 'green',
-    disclaimer: null,
-  },
-  {
-    id: '2',
-    category: 'fee_drag',
-    title: 'Your Fidelity fund charges 18× too much',
-    description: 'FBALX charges 0.48%/year. FXAIX tracks the exact same S&P 500 index at 0.015%. On your $205,000 balance, that\'s $1,847 in unnecessary fees per year.',
-    impact_amount_display: '$1,847',
-    priority: 'medium',
-    status: 'active',
-    badge: 'One Tap',
-    badge_color: 'green',
-    disclaimer: 'Educational information only — not investment advice.',
-  },
-  {
-    id: '3',
-    category: 'employer_match',
-    title: "You're leaving $3,200 in free money on the table",
-    description: 'You contribute 3% to your 401(k). Your employer matches 100% up to 6%. Increasing to 6% adds $3,200/year in employer contributions — a guaranteed 100% return on each dollar.',
-    impact_amount_display: '$3,200',
-    priority: 'high',
-    status: 'active',
-    badge: 'High Priority',
-    badge_color: 'amber',
-    disclaimer: 'Educational information only — adjust through your HR portal or Fidelity NetBenefits.',
-  },
-  {
-    id: '4',
-    category: 'obbba',
-    title: '$14,000 in overtime may be deductible under OBBBA',
-    description: 'You received $14,000 in overtime in 2025. Under the One Big Beautiful Bill Act, this income may be fully deductible. At your estimated 22% tax rate, that\'s ~$3,080 in savings.',
-    impact_amount_display: '$3,080',
-    priority: 'medium',
-    status: 'active',
-    badge: 'Needs CPA',
-    badge_color: 'amber',
-    disclaimer: 'Tax deductibility requires CPA review. This memo is educational — not tax advice.',
-  },
-  {
-    id: '5',
-    category: 'auto_loan',
-    title: 'Your car loan interest may be deductible',
-    description: 'You paid an estimated $2,420 in auto loan interest in 2025. Under OBBBA, qualifying vehicle loan interest up to $10,000 is now deductible. Ask your CPA to verify.',
-    impact_amount_display: '$2,420',
-    priority: 'low',
-    status: 'active',
-    badge: 'OBBBA',
-    badge_color: 'amber',
-    disclaimer: 'Deductibility varies. This is educational — not tax advice.',
-  },
-];
-
-const INITIAL_ACTIONS: FixAction[] = [
-  {
-    id: 'a1',
-    title: 'Switch FBALX → FXAIX (Fidelity 500 Index)',
-    description: "Same S&P 500 exposure. 97% lower cost. We'll show you the Fidelity link to make the switch in under 3 minutes. No tax event triggered by switching within an IRA.",
-    impact_amount_display: '$1,847',
-    meta: 'Fee Drag · One Tap',
-    solv_reward: 10,
-    status: 'pending',
-  },
-  {
-    id: 'a2',
-    title: 'Increase 401(k) contribution 3% → 6%',
-    description: "Your employer matches 100% up to 6%. You're at 3%. This is a guaranteed 100% return on each new dollar contributed.",
-    impact_amount_display: '$3,200',
-    meta: 'Employer Match · Must Do',
-    solv_reward: 25,
-    status: 'pending',
-  },
-  {
-    id: 'a3',
-    title: 'Send deduction summary to your CPA',
-    description: "We've prepared a 1-page memo covering your $14,000 overtime deduction and $2,420 auto loan interest deduction.",
-    impact_amount_display: '$5,500',
-    meta: 'OBBBA Deductions · Needs CPA',
-    solv_reward: 30,
-    status: 'pending',
-  },
-];
-
-const SOLV_HISTORY = [
-  { id: 'h1', action: 'Fixed cash drag on Chase', amount: 10 },
-  { id: 'h2', action: 'Emergency fund hit 3 months', amount: 25 },
-  { id: 'h3', action: 'Completed Fluency Score quiz', amount: 5 },
-  { id: 'h4', action: 'Score improved 10+ points', amount: 10 },
-];
 
 const QUESTIONS = [
   { q: "If your savings account earns 0.01% and a high-yield savings account earns 4.8%, what is the annual difference on a $20,000 balance?", opts: ["$2 difference", "$959 difference", "$96 difference", "No difference — they're insured the same"], correct: 1, cat: "Cash management" },
@@ -157,28 +70,204 @@ const QUESTIONS = [
 ];
 
 export default function Dashboard() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'demo'>('demo');
   const [activeTab, setActiveTab] = useState('dash');
   const [toastMsg, setToastMsg] = useState('');
   const [showToast, setShowToast] = useState(false);
-  
-  // Quiz state
   const [qi, setQi] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [showQuizResult, setShowQuizResult] = useState(false);
-  
-  // App state (local, no database)
-  const [user, setUser] = useState<UserProfile>(DEMO_USER);
-  const [findings, setFindings] = useState<Finding[]>(INITIAL_FINDINGS);
-  const [actions, setActions] = useState<FixAction[]>(INITIAL_ACTIONS);
-  const [solvHistory, setSolvHistory] = useState(SOLV_HISTORY);
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [connectedAccounts, setConnectedAccounts] = useState<Array<{id: string, name: string, institution: string, type: string, lastSync: string, balance: string}>>([
+    { id: '1', name: 'Chase Checking', institution: 'Chase', type: 'checking', lastSync: '2 hours ago', balance: '$4,521.32' },
+    { id: '2', name: 'Chase Savings', institution: 'Chase', type: 'savings', lastSync: '2 hours ago', balance: '$18,400.00' },
+    { id: '3', name: 'Fidelity 401(k)', institution: 'Fidelity', type: 'investment', lastSync: '1 day ago', balance: '$205,000.00' },
+  ]);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [connectStep, setConnectStep] = useState<'method' | 'uploading' | 'success'>('method');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    const sb = getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    
+    if (session) {
+      await fetchUserData(session.access_token);
+    }
+    setLoading(false);
+  };
+
+  const fetchUserData = async (token?: string) => {
+    const sb = getSupabase();
+    const token = token || (await sb.auth.getSession()).data.session?.access_token;
+    
+    if (!token) return;
+
+    try {
+      const res = await fetch('/api/user/data', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        
+        const trialDays = data.profile?.trial_ends_at 
+          ? Math.max(0, Math.ceil((new Date(data.profile.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+          : 14;
+
+        setUser({
+          profile: {
+            name: data.profile?.full_name || data.profile?.email?.split('@')[0] || 'User',
+            email: data.profile?.email || '',
+            is_demo: data.profile?.is_demo || false,
+            trial_days_left: trialDays,
+            solv_balance: data.profile?.solv_balance || 0,
+            solvency_score: data.profile?.solvency_score || 50,
+          },
+          findings: data.findings || [],
+          actions: data.actions || [],
+          solvHistory: data.solvHistory || [],
+          stats: {
+            totalLeakage: data.stats?.totalLeakage || 0,
+            fixedAmount: data.stats?.fixedAmount || 0,
+            pendingActions: data.stats?.pendingActions || 0,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Fetch user data error:', error);
+    }
+  };
 
   const showToastMessage = (msg: string) => {
     setToastMsg(msg);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleDemo = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/demo', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Demo failed');
+        setLoading(false);
+        return;
+      }
+
+      if (data.session) {
+        const sb = getSupabase();
+        await sb.auth.setSession(data.session);
+        await fetchUserData(data.session.access_token);
+      }
+    } catch (error) {
+      console.error('Demo error:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const sb = getSupabase();
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
+    });
+
+    if (error) {
+      alert(error.message);
+      setLoading(false);
+      return;
+    }
+
+    await fetchUserData(data.session?.access_token);
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Signup failed');
+        setLoading(false);
+        return;
+      }
+
+      // Auto login
+      const sb = getSupabase();
+      const { data: loginData, error: loginError } = await sb.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (loginError) throw loginError;
+      await fetchUserData(loginData.session?.access_token);
+    } catch (error) {
+      console.error('Signup error:', error);
+      alert('Signup failed');
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    const sb = getSupabase();
+    await sb.auth.signOut();
+    setUser(null);
+    setAuthMode('demo');
+    setFormData({ email: '', password: '' });
+  };
+
+  const handleActionUpdate = async (actionId: string, status: string) => {
+    if (!user) return;
+
+    const sb = getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+
+    try {
+      const res = await fetch('/api/actions', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ actionId, status }),
+      });
+
+      if (res.ok) {
+        // Update local state
+        const action = user.actions.find(a => a.id === actionId);
+        if (status === 'completed' && action) {
+          showToastMessage(`+${action.solv_reward} $SOLV earned!`);
+        }
+
+        // Refresh data
+        await fetchUserData(session.access_token);
+      }
+    } catch (error) {
+      console.error('Action update error:', error);
+    }
   };
 
   const handleTabChange = (tab: string) => {
@@ -190,37 +279,6 @@ export default function Dashboard() {
       setSelectedOpt(null);
       setShowQuizResult(false);
     }
-  };
-
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-  };
-
-  const handleActionComplete = (actionId: string) => {
-    setActions(prev => prev.map(a => 
-      a.id === actionId ? { ...a, status: 'completed' as const } : a
-    ));
-    
-    const action = actions.find(a => a.id === actionId);
-    if (action) {
-      setUser(prev => ({ ...prev, solv_balance: prev.solv_balance + action.solv_reward }));
-      setSolvHistory(prev => [
-        { id: `h${Date.now()}`, action: action.title, amount: action.solv_reward },
-        ...prev
-      ]);
-      showToastMessage(`+${action.solv_reward} $SOLV earned!`);
-    }
-  };
-
-  const handleActionDismiss = (actionId: string) => {
-    setActions(prev => prev.map(a => 
-      a.id === actionId ? { ...a, status: 'dismissed' as const } : a
-    ));
-    showToastMessage('Action dismissed');
   };
 
   const selectQuizOption = (i: number) => {
@@ -244,25 +302,26 @@ export default function Dashboard() {
   };
 
   const generateMemo = () => {
-    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const obbbaFindings = findings.filter(f => f.category === 'obbba' || f.category === 'auto_loan');
+    if (!user) return;
     
+    const obbbaFindings = user.findings.filter(f => f.category === 'obbba' || f.category === 'auto_loan');
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
     let memo = `
 ================================================================================
                     SHADOW CFO - TAX DEDUCTION SUMMARY
                               ${date}
 ================================================================================
 
-CLIENT: ${user.name}
-EMAIL: ${user.email}
+CLIENT: ${user.profile.name}
+EMAIL: ${user.profile.email}
 PREPARED BY: Shadow CFO (Automated Analysis)
 
 --------------------------------------------------------------------------------
                               EXECUTIVE SUMMARY
 --------------------------------------------------------------------------------
 
-This memo summarizes potential tax deductions identified through Shadow CFO's
-automated financial analysis.
+This memo summarizes potential tax deductions identified through Shadow CFO.
 
 --------------------------------------------------------------------------------
                             OBBBA-RELATED DEDUCTIONS
@@ -274,22 +333,15 @@ automated financial analysis.
       memo += `${i + 1}. ${f.title}\n   Category: ${f.category.toUpperCase()}\n   Potential Savings: ${f.impact_amount_display}\n\n   ${f.description}\n\n`;
     });
 
-    const total = obbbaFindings.reduce((sum, f) => {
-      const val = parseFloat(f.impact_amount_display.replace(/[^0-9.-]/g, ''));
-      return sum + val;
-    }, 0);
-
     memo += `
 --------------------------------------------------------------------------------
                               DISCLAIMER
 --------------------------------------------------------------------------------
 
-This memo is provided for educational purposes only and does not constitute
-tax advice. Please consult with a qualified CPA or tax advisor.
+This memo is for educational purposes only. Consult a qualified CPA.
 
 ================================================================================
                          Generated by Shadow CFO
-                    Your Personal Financial Guardian
 ================================================================================
 `;
 
@@ -302,26 +354,252 @@ tax advice. Please consult with a qualified CPA or tax advisor.
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     showToastMessage('CPA Memo downloaded!');
   };
 
-  const totalLeakage = findings.filter(f => f.status === 'active').reduce((sum, f) => {
-    const val = parseFloat(f.impact_amount_display.replace(/[^0-9.-]/g, ''));
-    return sum + val;
-  }, 0);
+  if (showConnectModal) {
+    return (
+      <>
+        <style>{`
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f7; }
+          .modal-overlay { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,0.5); }
+          .modal-card { background: white; border-radius: 20px; padding: 32px; width: 100%; max-width: 480px; }
+          .modal-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+          .modal-sub { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+          .connect-methods { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+          .method-btn { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; cursor: pointer; background: white; text-align: left; transition: all 0.2s; }
+          .method-btn:hover { border-color: #185FA5; background: #f0f7ff; }
+          .method-icon { width: 44px; height: 44px; background: #f3f4f6; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+          .method-title { font-weight: 500; font-size: 15px; }
+          .method-desc { font-size: 13px; color: #6b7280; }
+          .upload-zone { border: 2px dashed #d1d5db; border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; margin-bottom: 16px; transition: all 0.2s; }
+          .upload-zone:hover { border-color: #185FA5; background: #f0f7ff; }
+          .upload-zone.dragover { border-color: #185FA5; background: #e6f1fb; }
+          .upload-icon { font-size: 32px; margin-bottom: 8px; }
+          .upload-text { font-size: 14px; color: #6b7280; }
+          .upload-text strong { color: #185FA5; }
+          .file-name { font-size: 13px; color: #1a1a1a; margin-top: 8px; font-weight: 500; }
+          .btn-primary { width: 100%; padding: 14px; background: #185FA5; color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; }
+          .btn-primary:hover { opacity: 0.9; }
+          .btn-secondary { width: 100%; padding: 14px; background: transparent; color: #185FA5; border: 1px solid #185FA5; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 12px; }
+          .close-btn { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 20px; cursor: pointer; color: #9ca3af; }
+          .success-icon { width: 64px; height: 64px; background: #e1f5ee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 16px; }
+          .spinner { width: 40px; height: 40px; border: 3px solid #e6f1fb; border-top-color: #185FA5; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ position: 'relative' }}>
+            <button className="close-btn" onClick={() => { setShowConnectModal(false); setConnectStep('method'); setUploadedFile(null); }}>×</button>
+            
+            {connectStep === 'method' && (
+              <>
+                <div className="modal-title">Connect an Account</div>
+                <div className="modal-sub">Choose how you'd like to share your financial data</div>
+                
+                <div className="connect-methods">
+                  <button className="method-btn" onClick={() => setConnectStep('uploading')}>
+                    <div className="method-icon">📄</div>
+                    <div>
+                      <div className="method-title">Upload Bank Statement</div>
+                      <div className="method-desc">CSV or PDF from your bank portal</div>
+                    </div>
+                  </button>
+                  <button className="method-btn">
+                    <div className="method-icon">🏦</div>
+                    <div>
+                      <div className="method-title">Secure Bank Connect</div>
+                      <div className="method-desc">Read-only access via Plaid (coming soon)</div>
+                    </div>
+                  </button>
+                  <button className="method-btn">
+                    <div className="method-icon">📊</div>
+                    <div>
+                      <div className="method-title">Manual Entry</div>
+                      <div className="method-desc">Enter accounts and balances manually</div>
+                    </div>
+                  </button>
+                </div>
+                
+                <button className="btn-secondary" onClick={() => { setShowConnectModal(false); setConnectStep('method'); }}>Cancel</button>
+              </>
+            )}
 
-  const fixedAmount = findings.filter(f => f.status === 'fixed').reduce((sum, f) => {
-    const val = parseFloat(f.impact_amount_display.replace(/[^0-9.-]/g, ''));
-    return sum + val;
-  }, 0);
+            {connectStep === 'uploading' && (
+              <>
+                <div className="modal-title">Upload Statement</div>
+                <div className="modal-sub">We'll analyze your transactions for fee leaks and savings opportunities</div>
+                
+                <div 
+                  className="upload-zone"
+                  onClick={() => document.getElementById('file-input')?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('dragover'); }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove('dragover')}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('dragover');
+                    if (e.dataTransfer.files[0]) setUploadedFile(e.dataTransfer.files[0]);
+                  }}
+                >
+                  <div className="upload-icon">📁</div>
+                  <div className="upload-text">
+                    Drag & drop your file here<br/>
+                    or <strong>browse</strong>
+                  </div>
+                  <div className="upload-text" style={{ marginTop: 8, fontSize: 12 }}>Supports CSV, PDF, QFX, OFX</div>
+                  {uploadedFile && <div className="file-name">✓ {uploadedFile.name}</div>}
+                </div>
+                <input 
+                  id="file-input" 
+                  type="file" 
+                  accept=".csv,.pdf,.qfx,.ofx" 
+                  style={{ display: 'none' }}
+                  onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+                />
+                
+                <button className="btn-primary" onClick={() => {
+                  if (uploadedFile) {
+                    setConnectStep('success');
+                  } else {
+                    setConnectStep('success');
+                  }
+                }}>
+                  Analyze Statement
+                </button>
+              </>
+            )}
 
-  const pendingActions = actions.filter(a => a.status === 'pending').length;
-  const solvPct = Math.min((user.solv_balance / 1000) * 100, 100);
-  const solvRem = Math.max(0, 1000 - user.solv_balance);
+            {connectStep === 'success' && (
+              <>
+                <div className="success-icon">✓</div>
+                <div className="modal-title" style={{ textAlign: 'center' }}>Account Connected!</div>
+                <div className="modal-sub" style={{ textAlign: 'center' }}>
+                  We're analyzing your transactions now. This usually takes 30-60 seconds.
+                </div>
+                <div style={{ background: '#f3f4f6', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>Analyzing for:</div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ background: '#e6f1fb', color: '#185FA5', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>Fee Drag</span>
+                    <span style={{ background: '#e1f5ee', color: '#085041', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>Savings</span>
+                    <span style={{ background: '#faeeda', color: '#633806', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500 }}>Tax Deductions</span>
+                  </div>
+                </div>
+                <button className="btn-primary" onClick={() => {
+                  setShowConnectModal(false);
+                  setConnectStep('method');
+                  setUploadedFile(null);
+                }}>
+                  Back to Dashboard
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
 
+  if (loading) {
+    return (
+      <>
+        <style>{authStyles}</style>
+        <div className="auth-container">
+          <div className="auth-card">
+            <div className="loading-spinner" />
+            <p>Loading...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <style>{authStyles}</style>
+        <div className="auth-container">
+          <div className="auth-card">
+            <div className="auth-logo">Shadow CFO</div>
+            <p className="auth-subtitle">Guided Financial Intelligence</p>
+
+            {authMode === 'demo' ? (
+              <>
+                <p className="auth-desc">Try instantly with demo data. No signup required.</p>
+                <button className="btn-primary" onClick={handleDemo} disabled={loading}>
+                  Start Demo
+                </button>
+                <p className="auth-switch">
+                  Have an account? <button onClick={() => setAuthMode('login')}>Sign in</button>
+                </p>
+              </>
+            ) : authMode === 'login' ? (
+              <>
+                <form onSubmit={handleLogin}>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                  />
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Sign In
+                  </button>
+                </form>
+                <div className="auth-divider"><span>or</span></div>
+                <button className="btn-secondary" onClick={() => setAuthMode('demo')}>
+                  Try Demo Mode
+                </button>
+                <p className="auth-switch">
+                  New here? <button onClick={() => setAuthMode('signup')}>Create account</button>
+                </p>
+              </>
+            ) : (
+              <>
+                <form onSubmit={handleSignup}>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                  />
+                  <button type="submit" className="btn-primary" disabled={loading}>
+                    Create Account
+                  </button>
+                </form>
+                <p className="auth-switch">
+                  Have an account? <button onClick={() => setAuthMode('login')}>Sign in</button>
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+        {showToast && <div className="toast show">{toastMsg}</div>}
+      </>
+    );
+  }
+
+  const totalLeakage = user.stats.totalLeakage / 100;
+  const fixedAmount = user.stats.fixedAmount / 100;
+  const solvPct = Math.min((user.profile.solv_balance / 1000) * 100, 100);
+  const solvRem = Math.max(0, 1000 - user.profile.solv_balance);
   const getQuizScore = () => Math.round((correct / QUESTIONS.length) * 100);
-
   const getCategoryScores = () => {
     const cats = { risk: 0, tax: 0, cash: 0, fees: 0 };
     QUESTIONS.forEach((q, i) => {
@@ -334,38 +612,13 @@ tax advice. Please consult with a qualified CPA or tax advisor.
     });
     return cats;
   };
-
   const cats = getCategoryScores();
-
-  // Login Screen
-  if (!isLoggedIn) {
-    return (
-      <>
-        <style>{authStyles}</style>
-        <div className="auth-container">
-          <div className="auth-card">
-            <div className="auth-logo">Shadow CFO</div>
-            <p className="auth-subtitle">Guided Financial Intelligence</p>
-            <p className="auth-desc">Find hidden financial leaks and fix them automatically.</p>
-            <button className="btn-primary" onClick={handleLogin}>
-              Start Demo
-            </button>
-            <p className="auth-note">No signup required • Instant access</p>
-          </div>
-        </div>
-        {showToast && <div className="toast show">{toastMsg}</div>}
-      </>
-    );
-  }
 
   return (
     <>
       <style>{dashboardStyles}</style>
       
-      <div className="toast" style={{ 
-        opacity: showToast ? 1 : 0, 
-        transform: showToast ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(40px)' 
-      }}>
+      <div className="toast" style={{ opacity: showToast ? 1 : 0, transform: showToast ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(40px)' }}>
         {toastMsg}
       </div>
 
@@ -375,15 +628,16 @@ tax advice. Please consult with a qualified CPA or tax advisor.
             <button className={`tab ${activeTab === 'dash' ? 'on' : ''}`} onClick={() => handleTabChange('dash')}>Dashboard</button>
             <button className={`tab ${activeTab === 'findings' ? 'on' : ''}`} onClick={() => handleTabChange('findings')}>Findings</button>
             <button className={`tab ${activeTab === 'fixq' ? 'on' : ''}`} onClick={() => handleTabChange('fixq')}>
-              Fix Queue {pendingActions > 0 && <span className="cnt">{pendingActions}</span>}
+              Fix Queue {user.stats.pendingActions > 0 && <span className="cnt">{user.stats.pendingActions}</span>}
             </button>
             <button className={`tab ${activeTab === 'solv' ? 'on' : ''}`} onClick={() => handleTabChange('solv')}>$SOLV</button>
             <button className={`tab ${activeTab === 'quiz' ? 'on' : ''}`} onClick={() => handleTabChange('quiz')}>Fluency Quiz</button>
+            <button className={`tab ${activeTab === 'accounts' ? 'on' : ''}`} onClick={() => handleTabChange('accounts')}>Accounts</button>
           </div>
           <div className="topbar-right">
             <div className="user-menu">
-              {user.name}
-              {user.is_demo && <span className="demo-badge">DEMO</span>}
+              {user.profile.name}
+              {user.profile.is_demo && <span className="demo-badge">DEMO</span>}
             </div>
             <button className="logout-btn" onClick={handleLogout}>Logout</button>
           </div>
@@ -394,23 +648,23 @@ tax advice. Please consult with a qualified CPA or tax advisor.
           {activeTab === 'dash' && (
             <div className="scr on">
               <div className="ph">
-                Good morning, {user.name} <span className="ph-sub">— {user.trial_days_left} days left in trial</span>
+                Good morning, {user.profile.name} <span className="ph-sub">— {user.profile.trial_days_left} days left in trial</span>
               </div>
 
               <div className="score-row">
                 <div className="score-box">
-                  <div className="sn">{user.solvency_score}</div>
+                  <div className="sn">{user.profile.solvency_score}</div>
                   <div style={{ flex: 1 }}>
                     <div className="si-label">Solvency Score</div>
                     <div className="si-delta">+13 this month</div>
-                    <div className="si-txt">Cash drag fixed — ${fixedAmount}/year recovered</div>
-                    <div className="sbar"><div className="sbar-fill" style={{ width: `${user.solvency_score}%` }}></div></div>
+                    <div className="si-txt">Cash drag fixed — ${fixedAmount.toLocaleString()}/year recovered</div>
+                    <div className="sbar"><div className="sbar-fill" style={{ width: `${user.profile.solvency_score}%` }}></div></div>
                   </div>
                 </div>
                 <div className="leakage-box">
                   <div className="si-label">Total found</div>
                   <div className="lb-total">${totalLeakage.toLocaleString()}/yr</div>
-                  {findings.filter(f => f.status === 'active').map((f, i) => (
+                  {user.findings.filter(f => f.status === 'active').map((f, i) => (
                     <div key={i} className="lb-row">
                       <span>{f.category.replace('_', ' ')}</span>
                       <span>{f.impact_amount_display}</span>
@@ -419,23 +673,23 @@ tax advice. Please consult with a qualified CPA or tax advisor.
                   {fixedAmount > 0 && (
                     <div className="lb-row" style={{ marginTop: 4 }}>
                       <span>Fixed</span>
-                      <span style={{ color: 'var(--green)' }}>${fixedAmount}</span>
+                      <span style={{ color: 'var(--green)' }}>${fixedAmount.toLocaleString()}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {pendingActions > 0 && (
+              {user.stats.pendingActions > 0 && (
                 <div className="banner" onClick={() => handleTabChange('fixq')}>
                   <div>
-                    <div className="bt">{pendingActions} fixes ready — one tap each</div>
+                    <div className="bt">{user.stats.pendingActions} fixes ready — one tap each</div>
                     <div className="bs">Takes under 2 minutes · Earns $SOLV</div>
                   </div>
                   <div className="barr">→</div>
                 </div>
               )}
 
-              {findings.filter(f => f.status === 'active').slice(0, 1).map((finding) => (
+              {user.findings.filter(f => f.status === 'active').slice(0, 1).map((finding) => (
                 <div key={finding.id} className="fc">
                   <div className="fc-top">
                     <div className="badges">
@@ -460,9 +714,9 @@ tax advice. Please consult with a qualified CPA or tax advisor.
           {activeTab === 'findings' && (
             <div className="scr">
               <div className="ph">Your findings</div>
-              <div className="psub">Total: <strong style={{ color: 'var(--green)' }}>${totalLeakage.toLocaleString()}/year</strong> across {findings.filter(f => f.status === 'active').length} leakage categories</div>
+              <div className="psub">Total: <strong style={{ color: 'var(--green)' }}>${totalLeakage.toLocaleString()}/year</strong> across {user.findings.filter(f => f.status === 'active').length} leakage categories</div>
 
-              {findings.map((finding) => (
+              {user.findings.map((finding) => (
                 <div key={finding.id} className="fc">
                   <div className="fc-top">
                     <div className="badges">
@@ -495,8 +749,8 @@ tax advice. Please consult with a qualified CPA or tax advisor.
               <div className="ph">Fix Queue</div>
               <div className="psub">Review and approve. Every fix earns $SOLV.</div>
 
-              {actions.filter(a => a.status !== 'dismissed').length > 0 ? (
-                actions.filter(a => a.status !== 'dismissed').map((action) => (
+              {user.actions.filter(a => a.status !== 'dismissed').length > 0 ? (
+                user.actions.filter(a => a.status !== 'dismissed').map((action) => (
                   <div key={action.id} className="fqi">
                     <div className="fqi-meta">{action.meta} · +{action.solv_reward} $SOLV</div>
                     <div className="fqi-head">
@@ -505,18 +759,18 @@ tax advice. Please consult with a qualified CPA or tax advisor.
                     </div>
                     {action.description && <div className="fqi-desc">{action.description}</div>}
                     
-                    {action.status === 'pending' || action.status === 'started' ? (
+                    {action.status === 'pending' && (
                       <div className="fqi-btns">
-                        <button className="btn-p" onClick={() => handleActionComplete(action.id)}>
+                        <button className="btn-p" onClick={() => handleActionUpdate(action.id, 'completed')}>
                           Approve → +{action.solv_reward} $SOLV
                         </button>
-                        <button className="btn-s" onClick={() => handleActionDismiss(action.id)}>Dismiss</button>
+                        <button className="btn-s" onClick={() => handleActionUpdate(action.id, 'dismissed')}>Dismiss</button>
                       </div>
-                    ) : action.status === 'completed' ? (
+                    )}
+                    {action.status === 'completed' && (
                       <div className="ok-msg">✓ Action completed! +{action.solv_reward} $SOLV earned</div>
-                    ) : null}
-                    
-                    <div className="fqi-disc">Educational only. Review with an advisor if unsure.</div>
+                    )}
+                    <div className="fqi-disc">Educational only.</div>
                   </div>
                 ))
               ) : (
@@ -529,16 +783,16 @@ tax advice. Please consult with a qualified CPA or tax advisor.
           {activeTab === 'solv' && (
             <div className="scr">
               <div className="ph">Your $SOLV</div>
-              <div className="psub">Earned through financial health actions. Soul-bound — cannot be transferred or sold.</div>
+              <div className="psub">Earned through financial health actions.</div>
 
               <div className="solv-card">
                 <div className="solv-h">
                   <div>
                     <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 3 }}>Balance</div>
-                    <div className="solv-bal">{user.solv_balance} $SOLV</div>
+                    <div className="solv-bal">{user.profile.solv_balance} $SOLV</div>
                   </div>
                   <span className={`tier-pill ${solvRem <= 0 ? 'architect' : ''}`}>
-                    {user.solv_balance >= 1000 ? 'Architect' : 'Protector'}
+                    {user.profile.solv_balance >= 1000 ? 'Architect' : 'Protector'}
                   </span>
                 </div>
                 <div className="solv-bar-wrap"><div className="solv-bar-fill" style={{ width: `${solvPct}%` }}></div></div>
@@ -569,7 +823,7 @@ tax advice. Please consult with a qualified CPA or tax advisor.
               ))}
 
               <div style={{ fontSize: 13, fontWeight: 500, marginTop: 4 }}>Earning history</div>
-              {solvHistory.map((item) => (
+              {user.solvHistory.map((item) => (
                 <div key={item.id} className="hist-row">
                   <span style={{ color: 'var(--t2)' }}>{item.action}</span>
                   <span style={{ color: 'var(--green)', fontWeight: 500 }}>+{item.amount}</span>
@@ -579,6 +833,62 @@ tax advice. Please consult with a qualified CPA or tax advisor.
               <button className="btn-p" style={{ marginTop: 16 }} onClick={generateMemo}>
                 Download CPA Memo
               </button>
+            </div>
+          )}
+
+          {/* ACCOUNTS */}
+          {activeTab === 'accounts' && (
+            <div className="scr on">
+              <div className="ph">Connected Accounts</div>
+              <div className="psub">Your financial data is encrypted and secure (CFPB 1033 compliant)</div>
+
+              <div className="accounts-grid">
+                {connectedAccounts.map((account) => (
+                  <div key={account.id} className="account-card">
+                    <div className="acc-header">
+                      <div className="acc-icon">{account.institution.charAt(0)}</div>
+                      <div className="acc-info">
+                        <div className="acc-name">{account.name}</div>
+                        <div className="acc-inst">{account.institution} · {account.type}</div>
+                      </div>
+                    </div>
+                    <div className="acc-balance">{account.balance}</div>
+                    <div className="acc-footer">
+                      <span className="acc-sync">Synced {account.lastSync}</span>
+                      <button className="acc-refresh">Refresh</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button className="btn-primary" style={{ marginTop: 8 }} onClick={() => setShowConnectModal(true)}>
+                + Connect New Account
+              </button>
+
+              <div className="connect-info">
+                <div className="ci-title">How account connection works</div>
+                <div className="ci-row">
+                  <div className="ci-icon">1</div>
+                  <div>
+                    <div className="ci-label">Upload Bank Statement</div>
+                    <div className="ci-desc">Upload a CSV or PDF statement from your bank</div>
+                  </div>
+                </div>
+                <div className="ci-row">
+                  <div className="ci-icon">2</div>
+                  <div>
+                    <div className="ci-label">AI Analysis</div>
+                    <div className="ci-desc">We scan for fee drag, savings opportunities, and tax deductions</div>
+                  </div>
+                </div>
+                <div className="ci-row">
+                  <div className="ci-icon">3</div>
+                  <div>
+                    <div className="ci-label">Get Personalized Fixes</div>
+                    <div className="ci-desc">Actionable recommendations to recover lost money</div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -614,39 +924,34 @@ tax advice. Please consult with a qualified CPA or tax advisor.
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div className="score-result">
-                    <div className="sr-num" style={{ color: getQuizScore() >= 70 ? 'var(--green)' : getQuizScore() >= 50 ? 'var(--amber)' : 'var(--red)' }}>
-                      {getQuizScore()}
-                    </div>
-                    <div className="si-label">Your Financial Fluency Score</div>
-                    <div className="sr-label">
-                      {getQuizScore() >= 70 ? "Strong foundation — let's find and fix your specific leaks." : 
-                       getQuizScore() >= 50 ? "You know more than most — but there are gaps costing you money." : 
-                       "Significant gaps identified. The good news: they're all fixable automatically."}
-                    </div>
-                    <div className="sr-bars">
-                      {[
-                        { label: 'Risk comprehension', cats: cats.risk, total: 3 },
-                        { label: 'Tax efficiency', cats: cats.tax, total: 3 },
-                        { label: 'Cash management', cats: cats.cash, total: 2 },
-                        { label: 'Investment fees', cats: cats.fees, total: 3 },
-                      ].map((item, i) => (
-                        <div key={i} className="sr-bar-row">
-                          <span className="sr-bar-label">{item.label}</span>
-                          <div className="sr-bar-track">
-                            <div className="sr-bar-fill" style={{
-                              width: `${(item.cats / item.total) * 100}%`,
-                              background: (item.cats / item.total) * 100 >= 70 ? 'var(--green)' : (item.cats / item.total) * 100 >= 40 ? 'var(--amber)' : 'var(--red)'
-                            }}></div>
-                          </div>
+                <div className="score-result">
+                  <div className="sr-num" style={{ color: getQuizScore() >= 70 ? 'var(--green)' : getQuizScore() >= 50 ? 'var(--amber)' : 'var(--red)' }}>
+                    {getQuizScore()}
+                  </div>
+                  <div className="si-label">Your Financial Fluency Score</div>
+                  <div className="sr-label">
+                    {getQuizScore() >= 70 ? "Strong foundation!" : getQuizScore() >= 50 ? "You know more than most." : "Let's learn together."}
+                  </div>
+                  <div className="sr-bars">
+                    {[
+                      { label: 'Risk comprehension', cats: cats.risk, total: 3 },
+                      { label: 'Tax efficiency', cats: cats.tax, total: 3 },
+                      { label: 'Cash management', cats: cats.cash, total: 2 },
+                      { label: 'Investment fees', cats: cats.fees, total: 3 },
+                    ].map((item, i) => (
+                      <div key={i} className="sr-bar-row">
+                        <span className="sr-bar-label">{item.label}</span>
+                        <div className="sr-bar-track">
+                          <div className="sr-bar-fill" style={{
+                            width: `${(item.cats / item.total) * 100}%`,
+                            background: (item.cats / item.total) * 100 >= 70 ? 'var(--green)' : (item.cats / item.total) * 100 >= 40 ? 'var(--amber)' : 'var(--red)'
+                          }}></div>
                         </div>
-                      ))}
-                    </div>
-                    <div className="find-cta">
-                      Based on your score, we estimate you have <strong>{getQuizScore() >= 70 ? '$4,000–$8,000' : getQuizScore() >= 50 ? '$8,200–$14,000' : '$12,000–$20,000'}</strong> in annual financial leakage.
-                    </div>
-                    <button className="btn-p" style={{ width: '100%' }} onClick={() => showToastMessage('Sign up for full access!')}>Find My Exact Leakage →</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="find-cta">
+                    Based on your score, we estimate you have <strong>{getQuizScore() >= 70 ? '$4,000–$8,000' : getQuizScore() >= 50 ? '$8,200–$14,000' : '$12,000–$20,000'}</strong> in annual financial leakage.
                   </div>
                 </div>
               )}
@@ -664,11 +969,21 @@ const authStyles = `
   .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .auth-card { background: white; border-radius: 20px; padding: 48px 40px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
   .auth-logo { font-size: 32px; font-weight: 600; color: #185FA5; margin-bottom: 8px; }
-  .auth-subtitle { color: #6b7280; font-size: 14px; margin-bottom: 8px; }
-  .auth-desc { color: #6b7280; font-size: 14px; margin-bottom: 32px; line-height: 1.5; }
-  .btn-primary { width: 100%; padding: 16px; background: #185FA5; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+  .auth-subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+  .auth-desc { color: #6b7280; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+  .auth-card input { width: 100%; padding: 14px 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; font-size: 15px; margin-bottom: 12px; outline: none; }
+  .auth-card input:focus { border-color: #185FA5; }
+  .btn-primary { width: 100%; padding: 14px; background: #185FA5; color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; margin-bottom: 16px; }
   .btn-primary:hover { opacity: 0.9; }
-  .auth-note { color: #9ca3af; font-size: 12px; margin-top: 16px; }
+  .btn-primary:disabled { opacity: 0.6; }
+  .btn-secondary { width: 100%; padding: 14px; background: transparent; color: #185FA5; border: 1px solid #185FA5; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; }
+  .auth-divider { margin: 24px 0; position: relative; }
+  .auth-divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(0,0,0,0.1); }
+  .auth-divider span { background: white; padding: 0 12px; position: relative; color: #9ca3af; font-size: 13px; }
+  .auth-switch { font-size: 14px; color: #6b7280; }
+  .auth-switch button { background: none; border: none; color: #185FA5; cursor: pointer; font-weight: 500; }
+  .loading-spinner { width: 40px; height: 40px; border: 3px solid #E6F1FB; border-top-color: #185FA5; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a1a18; color: white; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; z-index: 999; }
   .toast.show { animation: toastIn 0.3s ease; }
   @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
@@ -680,8 +995,8 @@ const dashboardStyles = `
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; color: var(--t1); background: #f5f5f7; }
   .wrap { border: 0.5px solid var(--bd); border-radius: var(--rl); overflow: hidden; background: var(--card); display: grid; grid-template-rows: auto 1fr; min-height: 560px; max-width: 1000px; margin: 40px auto; }
   @media (max-width: 520px) { .wrap { margin: 0; border-radius: 0; min-height: 100vh; } }
-  .topbar { background: var(--surf); border-bottom: 0.5px solid var(--bd); display: flex; justify-content: space-between; overflow-x: auto; }
-  .topbar-left { display: flex; }
+  .topbar { background: var(--surf); border-bottom: 0.5px solid var(--bd); display: flex; justify-content: space-between; }
+  .topbar-left { display: flex; overflow-x: auto; }
   .topbar-right { display: flex; align-items: center; padding: 0 12px; gap: 8px; }
   .tab { padding: 12px 18px; font-size: 13px; color: var(--t2); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; white-space: nowrap; }
   .tab:hover { color: var(--t1); }
@@ -690,7 +1005,6 @@ const dashboardStyles = `
   .user-menu { font-size: 13px; color: var(--t2); display: flex; align-items: center; gap: 8px; }
   .demo-badge { font-size: 10px; background: var(--amber-l); color: #633806; padding: 2px 6px; border-radius: 4px; }
   .logout-btn { padding: 6px 12px; font-size: 12px; color: var(--t2); background: transparent; border: 1px solid var(--bd); border-radius: var(--rm); cursor: pointer; }
-  .logout-btn:hover { background: var(--surf); }
   .body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
   .scr { display: none; flex-direction: column; gap: 14px; }
   .scr.on { display: flex; }
@@ -733,7 +1047,6 @@ const dashboardStyles = `
   .fbtns { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn-p { background: var(--blue); color: white; font-size: 12px; font-weight: 500; padding: 8px 14px; border-radius: var(--rm); border: none; cursor: pointer; }
   .btn-p:hover { opacity: 0.85; }
-  .btn-p.done { background: var(--green); cursor: default; }
   .btn-s { background: transparent; color: var(--t2); font-size: 12px; padding: 8px 12px; border-radius: var(--rm); border: 0.5px solid var(--bd); cursor: pointer; }
   .btn-s:hover { background: var(--surf); }
   .disc { font-size: 11px; color: var(--t3); margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--bd); }
@@ -785,4 +1098,24 @@ const dashboardStyles = `
   .find-cta strong { color: var(--green); }
   .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%) translateY(40px); background: #1a1a18; color: white; padding: 9px 16px; border-radius: var(--rm); font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  
+  /* Accounts Tab */
+  .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .account-card { background: var(--surf); border: 0.5px solid var(--bd); border-radius: var(--rl); padding: 16px; }
+  .acc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .acc-icon { width: 40px; height: 40px; background: var(--blue-l); color: var(--blue); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px; }
+  .acc-name { font-weight: 500; font-size: 14px; }
+  .acc-inst { font-size: 12px; color: var(--t2); text-transform: capitalize; }
+  .acc-balance { font-size: 22px; font-weight: 500; color: var(--t1); margin-bottom: 12px; }
+  .acc-footer { display: flex; justify-content: space-between; align-items: center; }
+  .acc-sync { font-size: 11px; color: var(--t3); }
+  .acc-refresh { background: none; border: none; color: var(--blue); font-size: 12px; cursor: pointer; font-weight: 500; }
+  .acc-refresh:hover { text-decoration: underline; }
+  .connect-info { background: var(--surf); border-radius: var(--rl); padding: 20px; margin-top: 8px; border: 0.5px solid var(--bd); }
+  .ci-title { font-weight: 500; font-size: 14px; margin-bottom: 16px; }
+  .ci-row { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+  .ci-row:last-child { margin-bottom: 0; }
+  .ci-icon { width: 24px; height: 24px; background: var(--blue-l); color: var(--blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .ci-label { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .ci-desc { font-size: 12px; color: var(--t2); }
 `;
