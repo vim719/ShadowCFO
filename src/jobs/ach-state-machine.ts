@@ -1,9 +1,10 @@
 import type { TestSupabaseClient } from "../test-utils/supabase";
 import type { ShadowLedgerEntry } from "../ledger/shadow-ledger";
+import type { LedgerStatus } from "../ledger/shadow-ledger";
 
-const ACH_TIMEOUT_MS = 72 * 60 * 60 * 1000; // 72 hours
+const ACH_TIMEOUT_MS = 72 * 60 * 60 * 1000;
 const MAX_RETRIES = 3;
-const BALANCE_TOLERANCE_CENTS = 100; // $1 tolerance
+const BALANCE_TOLERANCE_CENTS = 100;
 
 export class ACHStateMachine {
   constructor(private readonly supabase: TestSupabaseClient) {}
@@ -11,15 +12,15 @@ export class ACHStateMachine {
   async processTimeouts(): Promise<number> {
     const now = Date.now();
 
-    // Find all pending entries
     const { data: pendingEntries } = await this.supabase
-      .from<ShadowLedgerEntry>("shadow_ledger")
+      .from("shadow_ledger")
       .select("*")
       .eq("status", "pending")
       .executeMany();
 
+    const entries = pendingEntries as ShadowLedgerEntry[];
     let processed = 0;
-    for (const entry of pendingEntries ?? []) {
+    for (const entry of entries ?? []) {
       const initiatedTime = new Date(entry.initiated_at).getTime();
       if (now - initiatedTime > ACH_TIMEOUT_MS) {
         await this.transitionToExpired(entry.id);
@@ -31,15 +32,15 @@ export class ACHStateMachine {
   }
 
   async processRetries(): Promise<number> {
-    // Find all retrying entries
     const { data: retryingEntries } = await this.supabase
-      .from<ShadowLedgerEntry>("shadow_ledger")
+      .from("shadow_ledger")
       .select("*")
       .eq("status", "retrying")
       .executeMany();
 
+    const entries = retryingEntries as ShadowLedgerEntry[];
     let processed = 0;
-    for (const entry of retryingEntries ?? []) {
+    for (const entry of entries ?? []) {
       if (entry.retry_count >= MAX_RETRIES) {
         await this.transitionToAborted(entry.id);
         processed++;
@@ -57,11 +58,11 @@ export class ACHStateMachine {
     const now = new Date().toISOString();
     
     await this.supabase
-      .from<ShadowLedgerEntry>("shadow_ledger")
+      .from("shadow_ledger")
       .select("*")
       .eq("id", entryId)
       .update({
-        status: "expired",
+        status: "expired" as LedgerStatus,
         failed_at: now,
         failure_reason: "ACH_72H_TIMEOUT"
       });
@@ -71,11 +72,11 @@ export class ACHStateMachine {
     const now = new Date().toISOString();
     
     await this.supabase
-      .from<ShadowLedgerEntry>("shadow_ledger")
+      .from("shadow_ledger")
       .select("*")
       .eq("id", entryId)
       .update({
-        status: "aborted",
+        status: "aborted" as LedgerStatus,
         failed_at: now,
         failure_reason: "MAX_RETRIES_EXCEEDED"
       });
@@ -85,11 +86,11 @@ export class ACHStateMachine {
     const now = new Date().toISOString();
     
     await this.supabase
-      .from<ShadowLedgerEntry>("shadow_ledger")
+      .from("shadow_ledger")
       .select("*")
       .eq("id", entryId)
       .update({
-        status: "settled",
+        status: "settled" as LedgerStatus,
         settled_at: now,
         ach_trace_id: achTraceId
       });

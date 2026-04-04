@@ -10,7 +10,7 @@ export interface ConsentPayload {
   timestamp: number;
 }
 
-interface ConsentChallenge {
+export interface ConsentChallenge extends Record<string, unknown> {
   id: string;
   challenge: string;
   user_id: string;
@@ -21,7 +21,7 @@ interface ConsentChallenge {
   created_at: string;
 }
 
-interface ConsentLogEntry {
+export interface ConsentLogEntry extends Record<string, unknown> {
   id: string;
   user_id: string;
   challenge: string;
@@ -29,7 +29,7 @@ interface ConsentLogEntry {
   logged_at: string;
 }
 
-interface WebAuthnCredential {
+export interface WebAuthnCredential extends Record<string, unknown> {
   id: string;
   user_id: string;
   credential_id: string;
@@ -58,7 +58,7 @@ interface ConsentGateDependencies {
   }) => Promise<boolean>;
 }
 
-const CONSENT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const CONSENT_WINDOW_MS = 5 * 60 * 1000;
 
 export class ConsentGate {
   private readonly now: () => number;
@@ -97,9 +97,8 @@ export class ConsentGate {
       created_at: new Date().toISOString()
     };
 
-    await this.supabase.from<ConsentChallenge>("consent_challenges").insert(challengeRecord);
+    await this.supabase.from("consent_challenges").insert(challengeRecord);
 
-    // Log consent to audit trail BEFORE user signs
     await this.logConsentAttempt(payload.userId, challenge, payload.actionDescription);
 
     return { challenge, expiresAt };
@@ -111,7 +110,7 @@ export class ConsentGate {
     authResponse: AuthenticationResponseLike
   ): Promise<boolean> {
     const { data: challengeRecord } = await this.supabase
-      .from<ConsentChallenge>("consent_challenges")
+      .from("consent_challenges")
       .select("*")
       .eq("challenge", challenge)
       .single();
@@ -120,27 +119,30 @@ export class ConsentGate {
       return false;
     }
 
-    if (challengeRecord.used) {
+    const rec = challengeRecord as ConsentChallenge;
+
+    if (rec.used) {
       return false;
     }
 
-    if (new Date(challengeRecord.expires_at).getTime() < this.now()) {
+    if (new Date(rec.expires_at).getTime() < this.now()) {
       return false;
     }
 
-    if (challengeRecord.user_id !== userId) {
+    if (rec.user_id !== userId) {
       return false;
     }
 
     const { data: credentials } = await this.supabase
-      .from<WebAuthnCredential>("webauthn_credentials")
+      .from("webauthn_credentials")
       .select("*")
       .eq("user_id", userId)
       .executeMany();
 
+    const creds = credentials as WebAuthnCredential[];
     const credential = authResponse.credentialId
-      ? credentials.find((item) => item.credential_id === authResponse.credentialId) ?? null
-      : credentials[0] ?? null;
+      ? creds.find((item) => item.credential_id === authResponse.credentialId) ?? null
+      : creds[0] ?? null;
 
     if (!credential) {
       return false;
@@ -169,7 +171,7 @@ export class ConsentGate {
 
   async markChallengeUsed(challenge: string): Promise<void> {
     await this.supabase
-      .from<ConsentChallenge>("consent_challenges")
+      .from("consent_challenges")
       .eq("challenge", challenge)
       .update({
         used: true,
@@ -183,7 +185,7 @@ export class ConsentGate {
     currentCounter: number
   ): Promise<number> {
     await this.supabase
-      .from<WebAuthnCredential>("webauthn_credentials")
+      .from("webauthn_credentials")
       .eq("user_id", userId)
       .eq("credential_id", credentialId)
       .update({
@@ -196,12 +198,12 @@ export class ConsentGate {
 
   async getConsentLog(userId: string): Promise<ConsentLogEntry[]> {
     const { data } = await this.supabase
-      .from<ConsentLogEntry>("consent_log")
+      .from("consent_log")
       .select("*")
       .eq("user_id", userId)
       .executeMany();
 
-    return data ?? [];
+    return (data as ConsentLogEntry[]) ?? [];
   }
 
   private async logConsentAttempt(
@@ -217,22 +219,23 @@ export class ConsentGate {
       logged_at: new Date().toISOString()
     };
 
-    await this.supabase.from<ConsentLogEntry>("consent_log").insert(logEntry);
+    await this.supabase.from("consent_log").insert(logEntry);
   }
 
   private async ensureCredentialForUser(userId: string): Promise<void> {
     const { data: credentials } = await this.supabase
-      .from<WebAuthnCredential>("webauthn_credentials")
+      .from("webauthn_credentials")
       .select("*")
       .eq("user_id", userId)
       .executeMany();
 
-    if (credentials.length > 0) {
+    const creds = credentials as WebAuthnCredential[];
+    if (creds.length > 0) {
       return;
     }
 
     const now = new Date(this.now()).toISOString();
-    await this.supabase.from<WebAuthnCredential>("webauthn_credentials").insert({
+    await this.supabase.from("webauthn_credentials").insert({
       id: crypto.randomUUID(),
       user_id: userId,
       credential_id: `bootstrap-${userId}`,

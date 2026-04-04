@@ -1,5 +1,5 @@
 import type { TestSupabaseClient } from "../../test-utils/supabase";
-import type { ShadowLedgerEntry } from "../../ledger/shadow-ledger";
+import type { ShadowLedgerEntry, LedgerEntryType } from "../../ledger/shadow-ledger";
 import { IdempotencyGuard } from "../../idempotency/idempotency-guard";
 import { ConsentGate } from "../../consent/consent-gate";
 
@@ -28,7 +28,6 @@ export async function approveFix(
   const idempotencyGuard = new IdempotencyGuard(supabase);
   const consentGate = new ConsentGate(supabase);
 
-  // 1. Validate request ID (idempotency)
   const requestIdValidation = idempotencyGuard.validateRequestId(params.requestId);
   if (!requestIdValidation.valid) {
     return {
@@ -38,7 +37,6 @@ export async function approveFix(
     };
   }
 
-  // 2. Check idempotency first so client retries return the original result
   const idempotencyResult = await idempotencyGuard.checkOrCreate({
     requestId: params.requestId,
     userId: params.userId,
@@ -47,7 +45,6 @@ export async function approveFix(
   });
 
   if (!idempotencyResult.isNew && idempotencyResult.existingEntry) {
-    // Idempotent response - return existing entry
     return {
       success: true,
       entry: idempotencyResult.existingEntry,
@@ -55,7 +52,6 @@ export async function approveFix(
     };
   }
 
-  // 3. Verify consent signature for first-time processing only
   const consentValid = await consentGate.verifyConsent(
     params.userId,
     params.consentChallenge,
@@ -70,30 +66,30 @@ export async function approveFix(
     };
   }
 
-  // 4. Create shadow ledger entry (pending)
   const now = new Date().toISOString();
   const entry: ShadowLedgerEntry = {
     id: crypto.randomUUID(),
     user_id: params.userId,
     request_id: params.requestId,
-    entry_type: "PENDING_DEBIT",
+    entry_type: "PENDING_DEBIT" as LedgerEntryType,
     account_ref: params.fromAccount,
     amount_cents: params.amountCents,
     currency: "USD",
     status: "pending",
     source_action: params.fixId,
     description: `Fix approval: ${params.amountCents / 100} from ${params.fromAccount} to ${params.toAccount}`,
+    metadata: {},
     initiated_at: now,
     settled_at: null,
     failed_at: null,
     failure_reason: null,
     ach_trace_id: null,
+    retry_count: 0,
     created_at: now
   };
 
-  await supabase.from<ShadowLedgerEntry>("shadow_ledger").insert(entry);
+  await supabase.from("shadow_ledger").insert(entry);
 
-  // 5. Return 202 Accepted (async processing)
   return {
     success: true,
     entry,
@@ -109,7 +105,6 @@ function hashPayload(params: ApproveFixParams): string {
     toAccount: params.toAccount
   });
   
-  // Simple hash for demo
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);

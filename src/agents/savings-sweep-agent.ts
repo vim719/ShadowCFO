@@ -77,11 +77,13 @@ export class SavingsSweepAgent {
       status: "pending",
       source_action: "savings-sweep-agent",
       description: `HYSA sweep: $${params.amountCents / 100} from ${params.fromAccount} to ${params.toAccount}`,
+      metadata: {},
       initiated_at: now,
       settled_at: null,
       failed_at: null,
       failure_reason: null,
       ach_trace_id: null,
+      retry_count: 0,
       created_at: now
     };
 
@@ -95,7 +97,8 @@ export class SavingsSweepAgent {
       .from<ShadowLedgerEntry>("shadow_ledger")
       .select("*")
       .eq("user_id", userId)
-      .eq("status", "settled");
+      .eq("status", "settled")
+      .executeMany();
 
     return data ?? [];
   }

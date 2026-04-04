@@ -30,16 +30,15 @@ export class IdempotencyGuard {
   constructor(private readonly supabase: TestSupabaseClient) {}
 
   async checkOrCreate(key: IdempotencyKey): Promise<IdempotencyResult> {
-    // Check for existing entry by request_id AND user_id
     const { data: existing } = await this.supabase
-      .from<ShadowLedgerEntry>("shadow_ledger")
+      .from("shadow_ledger")
       .select("*")
       .eq("request_id", key.requestId)
       .eq("user_id", key.userId)
       .single();
 
     if (existing) {
-      return { isNew: false, existingEntry: existing };
+      return { isNew: false, existingEntry: existing as ShadowLedgerEntry };
     }
 
     return { isNew: true };
