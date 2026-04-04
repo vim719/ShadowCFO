@@ -71,7 +71,7 @@ const QUESTIONS = [
 
 export default function Dashboard() {
   const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'demo'>('demo');
   const [activeTab, setActiveTab] = useState('dash');
   const [toastMsg, setToastMsg] = useState('');
@@ -94,8 +94,22 @@ export default function Dashboard() {
   useEffect(() => {
     // Always load demo data first for instant experience
     handleDemo();
-    setLoading(false);
   }, []);
+  
+  // Don't render anything until user data is loaded
+  if (!user) {
+    return (
+      <>
+        <style>{authStyles}</style>
+        <div className="auth-container">
+          <div className="auth-card">
+            <div className="loading-spinner" />
+            <p>Loading...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const checkSession = async () => {
     const sb = getSupabase();
