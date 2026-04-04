@@ -1,20 +1,73 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+interface UserData {
+  profile: {
+    id: string;
+    email: string;
+    full_name: string | null;
+    is_demo: boolean;
+    trial_ends_at: string | null;
+    solv_balance: number;
+    solvency_score: number;
+  };
+  findings: Array<{
+    id: string;
+    category: string;
+    title: string;
+    description: string;
+    impact_amount_display: string | null;
+    priority: string;
+    status: string;
+    badge: string | null;
+    badge_color: string | null;
+    disclaimer: string | null;
+  }>;
+  actions: Array<{
+    id: string;
+    finding_id: string | null;
+    title: string;
+    description: string | null;
+    impact_amount_display: string | null;
+    meta: string | null;
+    solv_reward: number;
+    action_type: string;
+    status: string;
+  }>;
+  solvHistory: Array<{
+    id: string;
+    amount: number;
+    action: string;
+    created_at: string;
+  }>;
+  stats: {
+    totalImpact: number;
+    fixedAmount: number;
+    pendingActions: number;
+    solvBalance: number;
+    solvencyScore: number;
+  };
+}
 
 export default function Dashboard() {
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'demo'>('login');
   const [activeTab, setActiveTab] = useState('dash');
-  const [solvBal, setSolvBal] = useState(847);
-  const [score, setScore] = useState(71);
-  const [fixCnt, setFixCnt] = useState(3);
-  const [fixedSum] = useState(883);
-  const [dismissed, setDismissed] = useState(0);
+  const [toastMsg, setToastMsg] = useState('');
+  const [showToast, setShowToast] = useState(false);
   const [qi, setQi] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
-  const [toastMsg, setToastMsg] = useState('');
-  const [showToast, setShowToast] = useState(false);
+  const [showQuizResult, setShowQuizResult] = useState(false);
+  const [memoGenerating, setMemoGenerating] = useState(false);
+
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
 
   const questions = [
     { q: "If your savings account earns 0.01% and a high-yield savings account earns 4.8%, what is the annual difference on a $20,000 balance?", opts: ["$2 difference", "$959 difference", "$96 difference", "No difference — they're insured the same"], correct: 1, cat: "Cash management" },
@@ -29,17 +82,104 @@ export default function Dashboard() {
     { q: "Under CFPB Section 1033, which went into effect in 2026, you have the legal right to:", opts: ["Sue your bank for overdraft fees", "Share your financial data with any authorized third-party app at no cost", "Receive a government grant for financial literacy", "Opt out of credit bureau reporting"], correct: 1, cat: "Risk comprehension" }
   ];
 
-  const [showQuizResult, setShowQuizResult] = useState(false);
-
+  // Check for existing session on mount
   useEffect(() => {
-    if (activeTab === 'quiz' && qi === 0 && !showQuizResult) {
-      setQi(0);
-      setCorrect(0);
-      setUserAnswers([]);
-      setSelectedOpt(null);
-      setShowQuizResult(false);
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    try {
+      const res = await fetch('/api/user/data');
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data);
+      }
+    } catch (error) {
+      console.error('Session check failed:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [activeTab]);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Login failed');
+        return;
+      }
+
+      await checkSession();
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Signup failed');
+        return;
+      }
+
+      // Auto-login after signup
+      await handleLogin(e);
+    } catch (error) {
+      console.error('Signup error:', error);
+      alert('Signup failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemo = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/demo', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Demo creation failed');
+        return;
+      }
+
+      await checkSession();
+    } catch (error) {
+      console.error('Demo error:', error);
+      alert('Demo creation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null);
+    setAuthMode('login');
+    setFormData({ email: '', password: '' });
+  };
 
   const showToastMessage = (msg: string) => {
     setToastMsg(msg);
@@ -79,6 +219,94 @@ export default function Dashboard() {
     }
   };
 
+  const handleActionUpdate = async (actionId: string, status: string) => {
+    try {
+      const res = await fetch('/api/actions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionId, status }),
+      });
+
+      if (res.ok) {
+        // Update local state
+        if (user) {
+          const updatedActions = user.actions.map((a) =>
+            a.id === actionId ? { ...a, status: status as typeof a.status } : a
+          );
+          const updatedFindings = status === 'completed'
+            ? user.findings.map((f) =>
+                user.actions.find((a) => a.id === actionId)?.finding_id === f.id
+                  ? { ...f, status: 'fixed' as const }
+                  : f
+              )
+            : user.findings;
+
+          const pendingActions = updatedActions.filter((a) => a.status === 'pending').length;
+          const action = user.actions.find((a) => a.id === actionId);
+
+          let newSolvBalance = user.profile.solv_balance;
+          if (status === 'completed' && action) {
+            newSolvBalance += action.solv_reward;
+            showToastMessage(`+${action.solv_reward} $SOLV earned!`);
+          } else {
+            showToastMessage(
+              status === 'completed' ? 'Action completed!' : 'Action dismissed'
+            );
+          }
+
+          setUser({
+            ...user,
+            actions: updatedActions,
+            findings: updatedFindings,
+            profile: {
+              ...user.profile,
+              solv_balance: newSolvBalance,
+            },
+            stats: {
+              ...user.stats,
+              pendingActions,
+              solvBalance: newSolvBalance,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Action update error:', error);
+      showToastMessage('Failed to update action');
+    }
+  };
+
+  const handleGenerateMemo = async () => {
+    setMemoGenerating(true);
+    try {
+      const res = await fetch('/api/memo', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToastMessage(data.error || 'Failed to generate memo');
+        return;
+      }
+
+      // Download memo as file
+      const blob = new Blob([data.memo], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToastMessage('CPA Memo downloaded!');
+    } catch (error) {
+      console.error('Memo error:', error);
+      showToastMessage('Failed to generate memo');
+    } finally {
+      setMemoGenerating(false);
+    }
+  };
+
   const getQuizScore = () => Math.round((correct / questions.length) * 100);
 
   const getCategoryScores = () => {
@@ -94,64 +322,230 @@ export default function Dashboard() {
     return cats;
   };
 
-  const handleQuickApprove = () => {
-    showToastMessage('$1,847/yr saved on fund fees · +10 $SOLV');
+  const cats = user ? getCategoryScores() : { risk: 0, tax: 0, cash: 0, fees: 0 };
+  const solvPct = user ? Math.min((user.profile.solv_balance / 1000) * 100, 100) : 0;
+  const solvRem = user ? Math.max(0, 1000 - user.profile.solv_balance) : 1000;
+
+  const formatCurrency = (cents: number) => {
+    return '$' + (cents / 100).toLocaleString() + '/yr';
   };
 
-  const handleApproveFix = (id: string, msg: string, solvAmount: number) => {
-    const el = document.getElementById(id);
-    if (el) {
-      const btns = el.querySelector('.fqi-btns');
-      if (btns) {
-        btns.innerHTML = `<span class="ok-msg">✓ ${msg.split('·')[0].trim()}</span>`;
-      }
-    }
-    setSolvBal(solvBal + solvAmount);
-    setScore(Math.min(100, score + 5));
-    showToastMessage(msg.replace(`+${solvAmount} $SOLV · `, '').replace(`+${solvAmount} $SOLV`, '').trim());
-    
-    const newFixCnt = Math.max(0, fixCnt - 1);
-    setFixCnt(newFixCnt);
-    if (newFixCnt === 0) {
-      setTimeout(() => {
-        const list = document.getElementById('fq-list');
-        const done = document.getElementById('fq-done');
-        if (list) list.style.display = 'none';
-        if (done) done.style.display = 'block';
-      }, 400);
-    }
+  const getDaysLeft = () => {
+    if (!user?.profile.trial_ends_at) return 14;
+    const diff = new Date(user.profile.trial_ends_at).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   };
 
-  const handleDismiss = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.style.opacity = '0.3';
-      el.style.pointerEvents = 'none';
-      setTimeout(() => {
-        el.style.display = 'none';
-      }, 300);
-    }
-    const newFixCnt = Math.max(0, fixCnt - 1);
-    setFixCnt(newFixCnt);
-    setDismissed(dismissed + 1);
-    if (newFixCnt === 0) {
-      setTimeout(() => {
-        const list = document.getElementById('fq-list');
-        const done = document.getElementById('fq-done');
-        if (list) list.style.display = 'none';
-        if (done) done.style.display = 'block';
-      }, 400);
-    }
-  };
+  // Loading state
+  if (loading) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="loading-spinner" />
+          <p>Loading...</p>
+        </div>
+        <style>{authStyles}</style>
+      </div>
+    );
+  }
 
-  const solvPct = Math.min((solvBal / 1000) * 100, 100);
-  const solvRem = Math.max(0, 1000 - solvBal);
-  const cats = getCategoryScores();
+  // Auth screen
+  if (!user) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <div className="auth-logo">Shadow CFO</div>
+          <p className="auth-subtitle">Guided Financial Intelligence</p>
+
+          {authMode === 'demo' ? (
+            <div className="demo-section">
+              <p>Try Shadow CFO instantly with demo data. No signup required.</p>
+              <button className="btn-primary" onClick={handleDemo} disabled={loading}>
+                {loading ? 'Creating demo...' : 'Start Demo'}
+              </button>
+              <button className="btn-link" onClick={() => setAuthMode('login')}>
+                Back to login
+              </button>
+            </div>
+          ) : (
+            <>
+              <form onSubmit={authMode === 'signup' ? handleSignup : handleLogin}>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                />
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Please wait...' : authMode === 'signup' ? 'Create Account' : 'Sign In'}
+                </button>
+              </form>
+
+              <div className="auth-divider">
+                <span>or</span>
+              </div>
+
+              <button className="btn-secondary" onClick={() => setAuthMode('demo')}>
+                Try Demo Mode
+              </button>
+
+              <p className="auth-switch">
+                {authMode === 'login' ? (
+                  <>New here? <button onClick={() => setAuthMode('signup')}>Create account</button></>
+                ) : (
+                  <>Already have an account? <button onClick={() => setAuthMode('login')}>Sign in</button></>
+                )}
+              </p>
+            </>
+          )}
+        </div>
+        <style>{authStyles}</style>
+      </div>
+    );
+  }
+
+  const userName = user.profile.full_name || user.profile.email.split('@')[0];
+  const isDemo = user.profile.is_demo;
 
   return (
     <>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        .auth-container {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f5f5f7;
+          padding: 20px;
+        }
+        .auth-card {
+          background: white;
+          border-radius: 20px;
+          padding: 40px;
+          width: 100%;
+          max-width: 400px;
+          text-align: center;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        .auth-logo {
+          font-size: 28px;
+          font-weight: 600;
+          color: #185FA5;
+          margin-bottom: 8px;
+        }
+        .auth-subtitle {
+          color: #6b7280;
+          font-size: 14px;
+          margin-bottom: 32px;
+        }
+        .auth-card input {
+          width: 100%;
+          padding: 14px 16px;
+          border: 1px solid rgba(0,0,0,0.1);
+          border-radius: 12px;
+          font-size: 15px;
+          margin-bottom: 12px;
+          outline: none;
+          transition: border-color 0.15s;
+        }
+        .auth-card input:focus {
+          border-color: #185FA5;
+        }
+        .btn-primary {
+          width: 100%;
+          padding: 14px;
+          background: #185FA5;
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: opacity 0.15s;
+          margin-bottom: 16px;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary {
+          width: 100%;
+          padding: 14px;
+          background: transparent;
+          color: #185FA5;
+          border: 1px solid #185FA5;
+          border-radius: 12px;
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .btn-secondary:hover { background: #E6F1FB; }
+        .btn-link {
+          background: none;
+          border: none;
+          color: #6b7280;
+          cursor: pointer;
+          font-size: 14px;
+          margin-top: 16px;
+        }
+        .btn-link:hover { color: #185FA5; }
+        .auth-divider {
+          margin: 24px 0;
+          position: relative;
+        }
+        .auth-divider::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: rgba(0,0,0,0.1);
+        }
+        .auth-divider span {
+          background: white;
+          padding: 0 12px;
+          position: relative;
+          color: #9ca3af;
+          font-size: 13px;
+        }
+        .auth-switch {
+          margin-top: 24px;
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .auth-switch button {
+          background: none;
+          border: none;
+          color: #185FA5;
+          cursor: pointer;
+          font-weight: 500;
+        }
+        .demo-section p {
+          color: #6b7280;
+          margin-bottom: 24px;
+          font-size: 14px;
+        }
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid #E6F1FB;
+          border-top-color: #185FA5;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 16px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         .wrap {
           border: 0.5px solid var(--bd);
           border-radius: var(--rl);
@@ -171,8 +565,20 @@ export default function Dashboard() {
           border-bottom: 0.5px solid var(--bd);
           padding: 0;
           display: flex;
+          justify-content: space-between;
+          align-items: center;
           overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
+        }
+        .topbar-left {
+          display: flex;
+          overflow-x: auto;
+          flex: 1;
+        }
+        .topbar-right {
+          padding: 0 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
         .topbar::-webkit-scrollbar { display: none; }
         .tab {
@@ -205,10 +611,30 @@ export default function Dashboard() {
           margin-left: 5px;
           vertical-align: middle;
         }
+        .user-menu {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          font-size: 13px;
+          color: var(--t2);
+        }
+        .logout-btn {
+          padding: 6px 12px;
+          font-size: 12px;
+          color: var(--t2);
+          background: transparent;
+          border: 1px solid var(--bd);
+          border-radius: var(--rm);
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .logout-btn:hover { background: var(--surf); }
         .body { padding: 20px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
         .scr { display: none; flex-direction: column; gap: 14px; }
         .scr.on { display: flex; }
         .ph { font-size: 17px; font-weight: 500; color: var(--t1); }
+        .ph-sub { font-size: 14px; color: var(--t2); font-weight: 400; }
         .psub { font-size: 13px; color: var(--t2); margin-top: -8px; }
         .score-row { display: flex; gap: 16px; align-items: stretch; }
         .score-box {
@@ -257,9 +683,11 @@ export default function Dashboard() {
         .b-done { background: var(--green-l); color: #085041; opacity: 0.7; }
         .amt { font-size: 24px; font-weight: 500; color: var(--green); white-space: nowrap; line-height: 1; }
         .amt small { font-size: 12px; color: var(--t3); font-weight: 400; }
+        .amt.faded { color: var(--t3); }
         .fh { font-size: 14px; font-weight: 500; margin-bottom: 5px; }
+        .fh.faded { color: var(--t2); }
         .fb { font-size: 13px; color: var(--t2); line-height: 1.6; margin-bottom: 12px; }
-        .fbtns { display: flex; gap: 8px; }
+        .fbtns { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn-p {
           background: var(--blue);
           color: #fff;
@@ -294,7 +722,7 @@ export default function Dashboard() {
         .fqi-impact { font-size: 22px; font-weight: 500; color: var(--green); white-space: nowrap; line-height: 1; }
         .fqi-impact small { font-size: 12px; color: var(--t3); font-weight: 400; }
         .fqi-desc { font-size: 13px; color: var(--t2); margin-bottom: 12px; line-height: 1.6; }
-        .fqi-btns { display: flex; gap: 8px; align-items: center; }
+        .fqi-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         .fqi-disc { font-size: 11px; color: var(--t3); margin-top: 8px; }
         .ok-msg { font-size: 13px; color: var(--green); font-weight: 500; }
         .empty { text-align: center; padding: 32px 16px; color: var(--t3); font-size: 13px; }
@@ -302,6 +730,7 @@ export default function Dashboard() {
         .solv-h { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
         .solv-bal { font-size: 24px; font-weight: 500; color: var(--blue); }
         .tier-pill { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 20px; background: var(--blue-l); color: #0C447C; }
+        .tier-pill.architect { background: var(--amber-l); color: #633806; }
         .solv-bar-wrap { height: 6px; background: var(--bd); border-radius: 3px; margin-bottom: 7px; }
         .solv-bar-fill { height: 100%; border-radius: 3px; background: var(--blue); transition: width 0.5s ease; }
         .solv-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--t2); }
@@ -309,6 +738,7 @@ export default function Dashboard() {
         .unlock-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
         .unlock-desc { font-size: 12px; color: var(--t2); }
         .unlock-pill { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 20px; background: var(--blue-l); color: #0C447C; white-space: nowrap; }
+        .unlock-pill.unlocked { background: var(--green-l); color: #085041; }
         .hist-row { display: flex; justify-content: space-between; font-size: 13px; padding: 8px 0; border-bottom: 0.5px solid var(--bd); }
         .hist-row:last-child { border-bottom: none; }
         .quiz-wrap { display: flex; flex-direction: column; gap: 12px; }
@@ -335,6 +765,7 @@ export default function Dashboard() {
         .find-cta strong { color: var(--green); }
         .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%) translateY(40px); background: #1a1a18; color: #fff; padding: 9px 16px; border-radius: var(--rm); font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .demo-badge { font-size: 10px; background: var(--amber-l); color: #633806; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
         @media (max-width: 520px) {
           .score-row { flex-direction: column; }
           .leakage-box { width: 100%; }
@@ -348,134 +779,118 @@ export default function Dashboard() {
 
       <div className="wrap">
         <div className="topbar">
-          <button className={`tab ${activeTab === 'dash' ? 'on' : ''}`} onClick={() => handleTabChange('dash')}>Dashboard</button>
-          <button className={`tab ${activeTab === 'findings' ? 'on' : ''}`} onClick={() => handleTabChange('findings')}>Findings</button>
-          <button className={`tab ${activeTab === 'fixq' ? 'on' : ''}`} onClick={() => handleTabChange('fixq')}>Fix Queue {fixCnt > 0 && <span className="cnt">{fixCnt}</span>}</button>
-          <button className={`tab ${activeTab === 'solv' ? 'on' : ''}`} onClick={() => handleTabChange('solv')}>$SOLV</button>
-          <button className={`tab ${activeTab === 'quiz' ? 'on' : ''}`} onClick={() => handleTabChange('quiz')}>Fluency Quiz</button>
+          <div className="topbar-left">
+            <button className={`tab ${activeTab === 'dash' ? 'on' : ''}`} onClick={() => handleTabChange('dash')}>Dashboard</button>
+            <button className={`tab ${activeTab === 'findings' ? 'on' : ''}`} onClick={() => handleTabChange('findings')}>Findings</button>
+            <button className={`tab ${activeTab === 'fixq' ? 'on' : ''}`} onClick={() => handleTabChange('fixq')}>Fix Queue {user.stats.pendingActions > 0 && <span className="cnt">{user.stats.pendingActions}</span>}</button>
+            <button className={`tab ${activeTab === 'solv' ? 'on' : ''}`} onClick={() => handleTabChange('solv')}>$SOLV</button>
+            <button className={`tab ${activeTab === 'quiz' ? 'on' : ''}`} onClick={() => handleTabChange('quiz')}>Fluency Quiz</button>
+          </div>
+          <div className="topbar-right">
+            <div className="user-menu">
+              {userName}
+              {isDemo && <span className="demo-badge">DEMO</span>}
+            </div>
+            <button className="logout-btn" onClick={handleLogout}>Logout</button>
+          </div>
         </div>
 
         <div className="body">
           {/* DASHBOARD */}
           <div className={`scr ${activeTab === 'dash' ? 'on' : ''}`}>
             <div className="ph">
-              Good morning, Sarah <span style={{ fontWeight: 400, fontSize: 14, color: 'var(--t2)' }}>— 11 days left in trial</span>
+              Good morning, {userName.split(' ')[0]} <span className="ph-sub">— {getDaysLeft()} days left in trial</span>
             </div>
 
             <div className="score-row">
               <div className="score-box">
-                <div className="sn">{score}</div>
+                <div className="sn">{user.stats.solvencyScore}</div>
                 <div style={{ flex: 1 }}>
                   <div className="si-label">Solvency Score</div>
                   <div className="si-delta">+13 this month</div>
-                  <div className="si-txt">Cash drag fixed — $883/year recovered</div>
-                  <div className="sbar"><div className="sbar-fill" style={{ width: `${score}%` }}></div></div>
+                  <div className="si-txt">Cash drag fixed — {formatCurrency(user.stats.fixedAmount)} recovered</div>
+                  <div className="sbar"><div className="sbar-fill" style={{ width: `${user.stats.solvencyScore}%` }}></div></div>
                 </div>
               </div>
               <div className="leakage-box">
                 <div className="si-label">Total found</div>
-                <div className="lb-total">$11,430/yr</div>
-                <div className="lb-row"><span>Cash drag</span><span>$883</span></div>
-                <div className="lb-row"><span>Fee drag</span><span>$1,847</span></div>
-                <div className="lb-row"><span>Match gap</span><span>$3,200</span></div>
-                <div className="lb-row"><span>OBBBA</span><span>$5,500</span></div>
-                <div className="lb-row" style={{ marginTop: 4 }}><span>Fixed</span><span style={{ color: 'var(--green)' }}>${fixedSum}</span></div>
+                <div className="lb-total">{formatCurrency(user.stats.totalImpact)}</div>
+                {user.findings.filter(f => f.status === 'active').map((f, i) => (
+                  <div key={i} className="lb-row">
+                    <span>{f.category.replace('_', ' ')}</span>
+                    <span>{f.impact_amount_display || 'TBD'}</span>
+                  </div>
+                ))}
+                {user.stats.fixedAmount > 0 && (
+                  <div className="lb-row" style={{ marginTop: 4 }}>
+                    <span>Fixed</span>
+                    <span style={{ color: 'var(--green)' }}>{formatCurrency(user.stats.fixedAmount)}</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="banner" onClick={() => handleTabChange('fixq')}>
-              <div>
-                <div className="bt">3 fixes ready — one tap each</div>
-                <div className="bs">Takes under 2 minutes · Earns $SOLV</div>
+            {user.stats.pendingActions > 0 && (
+              <div className="banner" onClick={() => handleTabChange('fixq')}>
+                <div>
+                  <div className="bt">{user.stats.pendingActions} fixes ready — one tap each</div>
+                  <div className="bs">Takes under 2 minutes · Earns $SOLV</div>
+                </div>
+                <div className="barr">→</div>
               </div>
-              <div className="barr">→</div>
-            </div>
+            )}
 
-            <div className="fc">
-              <div className="fc-top">
-                <div className="badges"><span className="badge b-cat">Fee Drag</span><span className="badge b-go">One Tap</span></div>
-                <div className="amt">$1,847 <small>/ yr</small></div>
+            {user.findings.filter(f => f.status === 'active').slice(0, 1).map((finding) => (
+              <div key={finding.id} className="fc">
+                <div className="fc-top">
+                  <div className="badges">
+                    <span className="badge b-cat">{finding.category.replace('_', ' ')}</span>
+                    {finding.badge && <span className={`badge ${finding.badge_color === 'green' ? 'b-go' : 'b-wa'}`}>{finding.badge}</span>}
+                  </div>
+                  <div className="amt">{finding.impact_amount_display || 'TBD'} <small>/ yr</small></div>
+                </div>
+                <div className="fh">{finding.title}</div>
+                <div className="fb">{finding.description}</div>
+                <div className="fbtns">
+                  <button className="btn-p" onClick={() => handleTabChange('fixq')}>See Swap Option</button>
+                  <button className="btn-s">Learn more</button>
+                </div>
+                {finding.disclaimer && <div className="disc">{finding.disclaimer}</div>}
               </div>
-              <div className="fh">Your Fidelity fund charges 18× too much</div>
-              <div className="fb">FBALX charges 0.48%/year. FXAIX tracks the same S&P 500 index at 0.015%. On your $205K balance, that's $1,847 in unnecessary fees every year.</div>
-              <div className="fbtns">
-                <button className="btn-p" onClick={handleQuickApprove}>See Swap Option</button>
-                <button className="btn-s">Learn more</button>
-              </div>
-              <div className="disc">Educational information only — not investment advice.</div>
-            </div>
+            ))}
           </div>
 
           {/* FINDINGS */}
           <div className={`scr ${activeTab === 'findings' ? 'on' : ''}`}>
             <div className="ph">Your findings</div>
-            <div className="psub">Total: <strong style={{ color: 'var(--green)' }}>$11,430/year</strong> across 5 leakage categories</div>
+            <div className="psub">Total: <strong style={{ color: 'var(--green)' }}>{formatCurrency(user.stats.totalImpact)}</strong> across {user.findings.filter(f => f.status === 'active').length} leakage categories</div>
 
-            <div className="fc">
-              <div className="fc-top">
-                <div className="badges"><span className="badge b-cat">Cash Drag</span><span className="badge b-done">Fixed</span></div>
-                <div className="amt" style={{ color: 'var(--t3)' }}>$883 <small>/ yr</small></div>
+            {user.findings.map((finding) => (
+              <div key={finding.id} className="fc">
+                <div className="fc-top">
+                  <div className="badges">
+                    <span className="badge b-cat">{finding.category.replace('_', ' ')}</span>
+                    <span className={`badge ${finding.status === 'fixed' ? 'b-done' : finding.badge_color === 'green' ? 'b-go' : 'b-wa'}`}>
+                      {finding.status === 'fixed' ? 'Fixed' : finding.badge}
+                    </span>
+                  </div>
+                  <div className={`amt ${finding.status === 'fixed' ? 'faded' : ''}`}>
+                    {finding.impact_amount_display || 'TBD'} <small>/ yr</small>
+                  </div>
+                </div>
+                <div className={`fh ${finding.status === 'fixed' ? 'faded' : ''}`}>{finding.title}</div>
+                <div className="fb">{finding.description}</div>
+                {finding.status === 'fixed' ? (
+                  <button className="btn-p done" disabled>Approved</button>
+                ) : (
+                  <div className="fbtns">
+                    <button className="btn-p" onClick={() => handleTabChange('fixq')}>View in Fix Queue</button>
+                    <button className="btn-s">Learn more</button>
+                  </div>
+                )}
+                {finding.disclaimer && <div className="disc">{finding.disclaimer}</div>}
               </div>
-              <div className="fh" style={{ color: 'var(--t2)' }}>$18,400 sitting idle at 0.01% — FIXED</div>
-              <div className="fb">Moved $18,400 to Marcus HYSA earning 4.8%. You approved this on Monday. Saving $883/year starting now.</div>
-              <div className="fbtns"><button className="btn-p done" disabled>Approved</button></div>
-            </div>
-
-            <div className="fc">
-              <div className="fc-top">
-                <div className="badges"><span className="badge b-cat">Fee Drag</span><span className="badge b-go">One Tap</span></div>
-                <div className="amt">$1,847 <small>/ yr</small></div>
-              </div>
-              <div className="fh">Your Fidelity fund charges 18× too much</div>
-              <div className="fb">FBALX charges 0.48%/year. FXAIX tracks the exact same S&P 500 index at 0.015%. On your $205,000 balance, that's $1,847 in unnecessary fees per year.</div>
-              <div className="fbtns">
-                <button className="btn-p" onClick={() => showToastMessage('$1,847/yr saved · +10 $SOLV')}>Approve Swap</button>
-                <button className="btn-s">Dismiss</button>
-              </div>
-              <div className="disc">Educational information only — not investment advice.</div>
-            </div>
-
-            <div className="fc">
-              <div className="fc-top">
-                <div className="badges"><span className="badge b-cat">Employer Match</span><span className="badge b-wa">High Priority</span></div>
-                <div className="amt">$3,200 <small>/ yr</small></div>
-              </div>
-              <div className="fh">You're leaving $3,200 in free money on the table</div>
-              <div className="fb">You contribute 3% to your 401(k). Your employer matches 100% up to 6%. Increasing to 6% adds $3,200/year in employer contributions — a guaranteed 100% return on each dollar.</div>
-              <div className="fbtns">
-                <button className="btn-p" onClick={() => showToastMessage('$3,200/yr employer match recaptured · +25 $SOLV')}>Increase to 6%</button>
-                <button className="btn-s">Learn more</button>
-              </div>
-              <div className="disc">Educational information only — adjust through your HR portal or Fidelity NetBenefits.</div>
-            </div>
-
-            <div className="fc">
-              <div className="fc-top">
-                <div className="badges"><span className="badge b-cat">OBBBA Deduction</span><span className="badge b-wa">Needs CPA</span></div>
-                <div className="amt">$3,080 <small>est.</small></div>
-              </div>
-              <div className="fh">$14,000 in overtime may be deductible under OBBBA</div>
-              <div className="fb">You received $14,000 in overtime in 2025. Under the One Big Beautiful Bill Act, this income may be fully deductible. At your estimated 22% tax rate, that's ~$3,080 in savings.</div>
-              <div className="fbtns">
-                <button className="btn-p" onClick={() => showToastMessage('CPA memo generated · +30 $SOLV')}>Generate CPA Memo</button>
-                <button className="btn-s">What is OBBBA?</button>
-              </div>
-              <div className="disc">Tax deductibility requires CPA review. This memo is educational — not tax advice.</div>
-            </div>
-
-            <div className="fc">
-              <div className="fc-top">
-                <div className="badges"><span className="badge b-cat">Auto Loan Interest</span><span className="badge b-wa">OBBBA</span></div>
-                <div className="amt">$2,420 <small>est.</small></div>
-              </div>
-              <div className="fh">Your car loan interest may be deductible</div>
-              <div className="fb">You paid an estimated $2,420 in auto loan interest in 2025. Under OBBBA, qualifying vehicle loan interest up to $10,000 is now deductible. Ask your CPA to verify.</div>
-              <div className="fbtns">
-                <button className="btn-p" onClick={() => showToastMessage('Auto loan deduction memo sent · +30 $SOLV')}>Add to CPA Memo</button>
-                <button className="btn-s">Dismiss</button>
-              </div>
-              <div className="disc">Deductibility varies. This is educational — not tax advice.</div>
-            </div>
+            ))}
           </div>
 
           {/* FIX QUEUE */}
@@ -483,50 +898,33 @@ export default function Dashboard() {
             <div className="ph">Fix Queue</div>
             <div className="psub">Review and approve. Every fix earns $SOLV.</div>
 
-            <div id="fq-list">
-              <div className="fqi" id="fq1">
-                <div className="fqi-meta">Fee Drag · One Tap · +10 $SOLV</div>
-                <div className="fqi-head">
-                  <div className="fqi-title">Switch FBALX → FXAIX (Fidelity 500 Index)</div>
-                  <div className="fqi-impact">$1,847 <small>/ yr</small></div>
+            {user.actions.filter(a => a.status !== 'dismissed').length > 0 ? (
+              user.actions.filter(a => a.status !== 'dismissed').map((action) => (
+                <div key={action.id} className="fqi" id={`action-${action.id}`}>
+                  <div className="fqi-meta">{action.meta}</div>
+                  <div className="fqi-head">
+                    <div className="fqi-title">{action.title}</div>
+                    <div className="fqi-impact">{action.impact_amount_display || 'TBD'} <small>/ yr</small></div>
+                  </div>
+                  {action.description && <div className="fqi-desc">{action.description}</div>}
+                  
+                  {action.status === 'pending' || action.status === 'started' ? (
+                    <div className="fqi-btns">
+                      <button className="btn-p" onClick={() => handleActionUpdate(action.id, 'completed')}>
+                        Approve → +{action.solv_reward} $SOLV
+                      </button>
+                      <button className="btn-s" onClick={() => handleActionUpdate(action.id, 'dismissed')}>Dismiss</button>
+                    </div>
+                  ) : action.status === 'completed' ? (
+                    <div className="ok-msg">✓ Action completed! +{action.solv_reward} $SOLV earned</div>
+                  ) : null}
+                  
+                  <div className="fqi-disc">Educational only. Review with an advisor if unsure.</div>
                 </div>
-                <div className="fqi-desc">Same S&P 500 exposure. 97% lower cost. We'll show you the Fidelity link to make the switch in under 3 minutes. No tax event triggered by switching within an IRA.</div>
-                <div className="fqi-btns">
-                  <button className="btn-p" onClick={() => handleApproveFix('fq1', '$1,847/yr saved · +10 $SOLV', 10)}>Approve → +10 $SOLV</button>
-                  <button className="btn-s" onClick={() => handleDismiss('fq1')}>Dismiss</button>
-                </div>
-                <div className="fqi-disc">Educational only. Not investment advice. Review with an advisor if unsure.</div>
-              </div>
-
-              <div className="fqi" id="fq2">
-                <div className="fqi-meta">Employer Match · Must Do · +25 $SOLV</div>
-                <div className="fqi-head">
-                  <div className="fqi-title">Increase 401(k) contribution 3% → 6%</div>
-                  <div className="fqi-impact">$3,200 <small>/ yr</small></div>
-                </div>
-                <div className="fqi-desc">Your employer matches 100% up to 6%. You're at 3%. This is a guaranteed 100% return on each new dollar contributed — the single highest-return action in your Fix Queue.</div>
-                <div className="fqi-btns">
-                  <button className="btn-p" onClick={() => handleApproveFix('fq2', '$3,200/yr recaptured · +25 $SOLV', 25)}>Approve → +25 $SOLV</button>
-                  <button className="btn-s" onClick={() => handleDismiss('fq2')}>Dismiss</button>
-                </div>
-                <div className="fqi-disc">Educational only. Adjust through your HR portal or Fidelity NetBenefits.</div>
-              </div>
-
-              <div className="fqi" id="fq3">
-                <div className="fqi-meta">OBBBA Deductions · Needs CPA · +30 $SOLV</div>
-                <div className="fqi-head">
-                  <div className="fqi-title">Send deduction summary to your CPA</div>
-                  <div className="fqi-impact">$5,500 <small>est.</small></div>
-                </div>
-                <div className="fqi-desc">We've prepared a 1-page memo covering your $14,000 overtime deduction and $2,420 auto loan interest deduction. Tap to open a pre-filled email ready to send to your CPA before they file.</div>
-                <div className="fqi-btns">
-                  <button className="btn-p" onClick={() => handleApproveFix('fq3', 'CPA memo sent · +30 $SOLV', 30)}>Send CPA Memo → +30 $SOLV</button>
-                  <button className="btn-s" onClick={() => handleDismiss('fq3')}>Dismiss</button>
-                </div>
-                <div className="fqi-disc">Tax deductibility requires CPA review. This memo is educational — not tax advice.</div>
-              </div>
-            </div>
-            <div className="empty" id="fq-done" style={{ display: fixCnt === 0 ? 'block' : 'none' }}>All caught up. We're monitoring for new opportunities.</div>
+              ))
+            ) : (
+              <div className="empty">All caught up. We're monitoring for new opportunities.</div>
+            )}
           </div>
 
           {/* $SOLV */}
@@ -538,10 +936,10 @@ export default function Dashboard() {
               <div className="solv-h">
                 <div>
                   <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 3 }}>Balance</div>
-                  <div className="solv-bal">{solvBal} $SOLV</div>
+                  <div className="solv-bal">{user.profile.solv_balance} $SOLV</div>
                 </div>
-                <span className="tier-pill" style={solvRem <= 0 ? { background: 'var(--amber-l)', color: '#633806' } : {}}>
-                  {solvBal >= 1000 ? 'Architect' : 'Protector'}
+                <span className={`tier-pill ${solvRem <= 0 ? 'architect' : ''}`}>
+                  {user.profile.solv_balance >= 1000 ? 'Architect' : 'Protector'}
                 </span>
               </div>
               <div className="solv-bar-wrap"><div className="solv-bar-fill" style={{ width: `${solvPct}%` }}></div></div>
@@ -558,26 +956,30 @@ export default function Dashboard() {
             {[
               { name: 'Alt Alpha Pool', desc: 'Private credit and real estate access' },
               { name: 'Priority scanning', desc: 'Real-time account monitoring' },
-              { name: 'Trump Account setup', desc: 'Automated generational wealth for your children' }
+              { name: 'CPA Memo generation', desc: 'Downloadable tax deduction summary' },
             ].map((item, i) => (
               <div className="unlock-row" key={i}>
                 <div>
                   <div className="unlock-name">{item.name}</div>
                   <div className="unlock-desc">{item.desc}</div>
                 </div>
-                <span className="unlock-pill" style={solvRem <= 0 ? { background: 'var(--green-l)', color: '#085041' } : {}}>
+                <span className={`unlock-pill ${solvRem <= 0 ? 'unlocked' : ''}`}>
                   {solvRem > 0 ? `${solvRem} away` : 'Unlocked'}
                 </span>
               </div>
             ))}
 
             <div style={{ fontSize: 13, fontWeight: 500, marginTop: 4 }}>Earning history</div>
-            <div>
-              <div className="hist-row"><span style={{ color: 'var(--t2)' }}>Fixed cash drag on Chase</span><span style={{ color: 'var(--green)', fontWeight: 500 }}>+10</span></div>
-              <div className="hist-row"><span style={{ color: 'var(--t2)' }}>Emergency fund hit 3 months</span><span style={{ color: 'var(--green)', fontWeight: 500 }}>+25</span></div>
-              <div className="hist-row"><span style={{ color: 'var(--t2)' }}>Completed Fluency Score quiz</span><span style={{ color: 'var(--green)', fontWeight: 500 }}>+5</span></div>
-              <div className="hist-row"><span style={{ color: 'var(--t2)' }}>Score improved 10+ points</span><span style={{ color: 'var(--green)', fontWeight: 500 }}>+10</span></div>
-            </div>
+            {user.solvHistory.length > 0 ? (
+              user.solvHistory.map((item) => (
+                <div key={item.id} className="hist-row">
+                  <span style={{ color: 'var(--t2)' }}>{item.action}</span>
+                  <span style={{ color: 'var(--green)', fontWeight: 500 }}>+{item.amount}</span>
+                </div>
+              ))
+            ) : (
+              <div className="hist-row" style={{ color: 'var(--t3)' }}>Complete fixes to earn $SOLV</div>
+            )}
           </div>
 
           {/* FLUENCY QUIZ */}
@@ -598,16 +1000,9 @@ export default function Dashboard() {
                     if (selectedOpt !== null) {
                       if (i === questions[qi].correct) cls += ' right';
                       else if (i === selectedOpt && i !== questions[qi].correct) cls += ' wrong';
-                    } else if (selectedOpt === i) {
-                      cls += ' sel';
                     }
                     return (
-                      <button
-                        key={i}
-                        className={cls}
-                        onClick={() => selectQuizOption(i)}
-                        disabled={selectedOpt !== null}
-                      >
+                      <button key={i} className={cls} onClick={() => selectQuizOption(i)} disabled={selectedOpt !== null}>
                         {opt}
                       </button>
                     );
@@ -628,47 +1023,27 @@ export default function Dashboard() {
                     {getQuizScore() >= 70 ? "Strong foundation — let's find and fix your specific leaks." : getQuizScore() >= 50 ? "You know more than most — but there are gaps costing you money." : "Significant gaps identified. The good news: they're all fixable automatically."}
                   </div>
                   <div className="sr-bars">
-                    <div className="sr-bar-row">
-                      <span className="sr-bar-label">Risk comprehension</span>
-                      <div className="sr-bar-track">
-                        <div className="sr-bar-fill" style={{ 
-                          width: `${(cats.risk / 3) * 100}%`,
-                          background: (cats.risk / 3) * 100 >= 70 ? 'var(--green)' : (cats.risk / 3) * 100 >= 40 ? 'var(--amber)' : 'var(--red)'
-                        }}></div>
+                    {[
+                      { label: 'Risk comprehension', cats: cats.risk, total: 3 },
+                      { label: 'Tax efficiency', cats: cats.tax, total: 3 },
+                      { label: 'Cash management', cats: cats.cash, total: 2 },
+                      { label: 'Investment fees', cats: cats.fees, total: 3 },
+                    ].map((item, i) => (
+                      <div key={i} className="sr-bar-row">
+                        <span className="sr-bar-label">{item.label}</span>
+                        <div className="sr-bar-track">
+                          <div className="sr-bar-fill" style={{
+                            width: `${(item.cats / item.total) * 100}%`,
+                            background: (item.cats / item.total) * 100 >= 70 ? 'var(--green)' : (item.cats / item.total) * 100 >= 40 ? 'var(--amber)' : 'var(--red)'
+                          }}></div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="sr-bar-row">
-                      <span className="sr-bar-label">Tax efficiency</span>
-                      <div className="sr-bar-track">
-                        <div className="sr-bar-fill" style={{ 
-                          width: `${(cats.tax / 3) * 100}%`,
-                          background: (cats.tax / 3) * 100 >= 70 ? 'var(--green)' : (cats.tax / 3) * 100 >= 40 ? 'var(--amber)' : 'var(--red)'
-                        }}></div>
-                      </div>
-                    </div>
-                    <div className="sr-bar-row">
-                      <span className="sr-bar-label">Cash management</span>
-                      <div className="sr-bar-track">
-                        <div className="sr-bar-fill" style={{ 
-                          width: `${(cats.cash / 2) * 100}%`,
-                          background: (cats.cash / 2) * 100 >= 70 ? 'var(--green)' : (cats.cash / 2) * 100 >= 40 ? 'var(--amber)' : 'var(--red)'
-                        }}></div>
-                      </div>
-                    </div>
-                    <div className="sr-bar-row">
-                      <span className="sr-bar-label">Investment fees</span>
-                      <div className="sr-bar-track">
-                        <div className="sr-bar-fill" style={{ 
-                          width: `${(cats.fees / 3) * 100}%`,
-                          background: (cats.fees / 3) * 100 >= 70 ? 'var(--green)' : (cats.fees / 3) * 100 >= 40 ? 'var(--amber)' : 'var(--red)'
-                        }}></div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                   <div className="find-cta">
                     Based on your score, we estimate you have <strong>{getQuizScore() >= 70 ? '$4,000–$8,000' : getQuizScore() >= 50 ? '$8,200–$14,000' : '$12,000–$20,000'}</strong> in annual financial leakage. Connect your accounts to find the exact amount.
                   </div>
-                  <button className="btn-p" style={{ width: '100%' }} onClick={() => showToastMessage('Sign up at shadowcfo.com to connect your accounts and find your exact leakage')}>Find My Exact Leakage →</button>
+                  <button className="btn-p" style={{ width: '100%' }} onClick={() => showToastMessage('Sign up at shadowcfo.com to connect your accounts')}>Find My Exact Leakage →</button>
                 </div>
               </div>
             )}
@@ -678,3 +1053,34 @@ export default function Dashboard() {
     </>
   );
 }
+
+const authStyles = `
+  :root {
+    --blue: #185FA5;
+    --blue-l: #E6F1FB;
+    --green: #1D9E75;
+    --green-l: #E1F5EE;
+    --amber: #854F0B;
+    --amber-l: #FAEEDA;
+    --red: #A32D2D;
+    --red-l: #FCEBEB;
+    --t1: #1a1a1a;
+    --t2: #6b7280;
+    --t3: #9ca3af;
+    --bd: rgba(0, 0, 0, 0.08);
+    --surf: #f9fafb;
+    --card: #ffffff;
+    --rm: 14px;
+    --rl: 20px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: #f5f5f7;
+    color: var(--t1);
+    font-size: 14px;
+    line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+`;
