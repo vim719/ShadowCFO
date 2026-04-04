@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -36,6 +37,30 @@ export default function LoginPage() {
       setError(caughtError instanceof Error ? caughtError.message : 'Unable to sign in.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDemo() {
+    setDemoLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/demo', {
+        method: 'POST',
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to start demo.');
+      }
+
+      router.push('/welcome');
+      router.refresh();
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to start demo.');
+    } finally {
+      setDemoLoading(false);
     }
   }
 
@@ -75,6 +100,19 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <div className="auth-divider">
+          <span>or</span>
+        </div>
+
+        <button
+          type="button"
+          className="secondary-button full-width-button"
+          onClick={handleDemo}
+          disabled={demoLoading}
+        >
+          {demoLoading ? 'Launching demo...' : 'Try demo instantly'}
+        </button>
 
         <div className="auth-links">
           <a href="/signup">Create an account</a>

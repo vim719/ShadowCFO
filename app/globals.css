@@ -159,7 +159,9 @@ form {
 .accounts-grid,
 .accounts-summary-grid,
 .detail-grid,
-.score-row {
+.score-row,
+.onboarding-grid,
+.onboarding-stats {
   display: grid;
   gap: 16px;
 }
@@ -168,9 +170,14 @@ form {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.onboarding-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .feature-card,
 .detail-card,
 .stat-card,
+.onboarding-card,
 .account-card,
 .upload-status-card,
 .history-card,
@@ -191,6 +198,26 @@ form {
 
 .feature-card {
   padding: 22px;
+}
+
+.onboarding-card {
+  padding: 20px;
+}
+
+.onboarding-copy {
+  color: var(--ink-soft);
+  margin: 8px 0 14px;
+}
+
+.onboarding-list {
+  margin: 0 0 18px 18px;
+  padding: 0;
+  color: var(--ink-soft);
+}
+
+.onboarding-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
 }
 
 .feature-title {
@@ -499,6 +526,10 @@ form {
   padding: 14px;
 }
 
+.stat-card.compact {
+  padding: 12px;
+}
+
 .fine-print,
 .inline-error,
 .auth-error {
@@ -519,6 +550,10 @@ form {
   border-radius: 12px;
   font-weight: 600;
   transition: opacity 120ms ease, transform 120ms ease, background 120ms ease;
+}
+
+.full-width-button {
+  width: 100%;
 }
 
 .compact-button {
@@ -822,6 +857,29 @@ form {
   color: var(--ink-soft);
 }
 
+.auth-divider {
+  position: relative;
+  margin: 16px 0;
+  text-align: center;
+  color: var(--ink-muted);
+}
+
+.auth-divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--line);
+}
+
+.auth-divider span {
+  position: relative;
+  display: inline-block;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
 .auth-error,
 .inline-error {
   color: var(--red);
@@ -850,7 +908,9 @@ form {
   .accounts-grid,
   .score-row,
   .detail-grid,
-  .accounts-summary-grid {
+  .accounts-summary-grid,
+  .onboarding-grid,
+  .onboarding-stats {
     grid-template-columns: 1fr;
   }
 
