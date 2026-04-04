@@ -92,7 +92,8 @@ export default function Dashboard() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   useEffect(() => {
-    checkSession();
+    // Always load demo data first for instant experience
+    handleDemo();
   }, []);
 
   const checkSession = async () => {
