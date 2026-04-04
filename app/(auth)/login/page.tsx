@@ -1,102 +1,84 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gxxezkoiyxrnwtdrchtz.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4eGV6a29peXhybnd0ZHJjaHR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNjM3MTcsImV4cCI6MjA5MDgzOTcxN30.ldVjon3CvC8Fv1UFJqxDwMx-IEOritV8pr-6CDXjigw';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setLoading(true);
-    setError('');
+    setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to sign in.');
+      }
+
       router.push('/dashboard');
+      router.refresh();
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to sign in.');
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-emerald-400 tracking-tight">Shadow CFO</h1>
-          <p className="text-gray-400 mt-2">Sign in to your account</p>
-        </div>
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="brand-mark">Shadow CFO</div>
+        <h1 className="auth-title">Sign in</h1>
+        <p className="auth-copy">Return to your findings, fix queue, and $SOLV progress.</p>
 
-        <div className="bg-dark-900 border border-dark-800 rounded-2xl p-8">
-          <form onSubmit={handleLogin} className="space-y-6">
-            {error && (
-              <div className="bg-red-900/20 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <label className="auth-field">
+            <span>Email</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
+              required
+            />
+          </label>
 
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
+          <label className="auth-field">
+            <span>Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+              required
+            />
+          </label>
 
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-white focus:border-emerald-500 focus:outline-none transition-colors"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+          {error ? <div className="auth-error">{error}</div> : null}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
+          <button type="submit" className="primary-button" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-400 text-sm">
-              Don't have an account?{' '}
-              <a href="/signup" className="text-emerald-400 hover:text-emerald-300">
-                Sign up
-              </a>
-            </p>
-          </div>
-
-          <div className="mt-4 text-center">
-            <a href="/" className="text-gray-500 hover:text-gray-400 text-sm">
-              ← Back to home
-            </a>
-          </div>
+        <div className="auth-links">
+          <a href="/signup">Create an account</a>
+          <a href="/">Back to home</a>
         </div>
       </div>
     </div>

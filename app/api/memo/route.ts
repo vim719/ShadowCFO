@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { generateCPAMemo } from '@/lib/cpa-memo';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import { getSession } from '@/lib/auth';
+import { createSupabaseAdminClient } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('sb-user-id')?.value;
+    const user = await getSession();
 
-    if (!userId) {
+    if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createSupabaseAdminClient();
 
     // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
@@ -32,7 +28,7 @@ export async function POST(request: NextRequest) {
     const { data: obbbaFindings, error: findingsError } = await supabase
       .from('findings')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .eq('status', 'active')
       .in('category', ['obbba', 'auto_loan']);
 

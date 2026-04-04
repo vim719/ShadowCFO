@@ -1,96 +1,106 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { DownloadMemoButton } from '@/components/download-memo-button';
+import { getDashboardData } from '@/lib/dashboard-data';
 
 export default async function FixQueuePage() {
-  const cookieStore = await cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: actions } = await supabase
-    .from('fix_actions')
-    .select('*')
-    .eq('user_id', user?.id)
-    .neq('status', 'dismissed')
-    .order('created_at', { ascending: false });
-
-  const pendingActions = actions?.filter((a: any) => a.status === 'pending') || [];
-  const completedActions = actions?.filter((a: any) => a.status === 'completed') || [];
+  const { pendingActions, completedActions } = await getDashboardData();
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-2">Fix Queue</h1>
-      <p className="text-gray-400 mb-8">Review and approve. Every fix earns $SOLV.</p>
+    <div className="screen-stack">
+      <div>
+        <div className="page-title">Fix Queue</div>
+        <p className="page-subtitle">
+          Review and approve. Every completed action updates your score path and earns $SOLV.
+        </p>
+      </div>
 
       {pendingActions.length === 0 && completedActions.length === 0 ? (
-        <div className="bg-dark-900 border border-dark-800 rounded-2xl p-12 text-center">
-          <div className="text-4xl mb-4">✨</div>
-          <h3 className="text-xl font-semibold mb-2">All caught up</h3>
-          <p className="text-gray-400">We're monitoring for new opportunities.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {pendingActions.map((action: any) => (
-            <div key={action.id} className="bg-dark-900 border border-dark-800 rounded-2xl p-6">
-              <div className="text-sm text-gray-400 mb-2">{action.meta} · +{action.solv_reward} $SOLV</div>
-              <div className="flex justify-between items-start mb-3">
-                <h3 className="text-xl font-semibold">{action.title}</h3>
-                <div className="text-2xl font-bold text-emerald-400">
-                  {action.impact_amount_display} <span className="text-sm text-gray-400">/ yr</span>
-                </div>
-              </div>
-              {action.description && <p className="text-gray-400 mb-4">{action.description}</p>}
-              <div className="flex gap-4">
-                <form action="/api/actions" method="POST">
-                  <input type="hidden" name="actionId" value={action.id} />
-                  <input type="hidden" name="status" value="completed" />
-                  <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-                    Approve → +{action.solv_reward} $SOLV
-                  </button>
-                </form>
-                <form action="/api/actions" method="POST">
-                  <input type="hidden" name="actionId" value={action.id} />
-                  <input type="hidden" name="status" value="dismissed" />
-                  <button type="submit" className="border border-dark-700 text-gray-300 px-6 py-2 rounded-lg font-medium hover:bg-dark-800 transition-colors">
-                    Dismiss
-                  </button>
-                </form>
-              </div>
-              <div className="mt-4 text-xs text-gray-500">Educational only.</div>
-            </div>
-          ))}
+        <section className="empty-card">
+          <h2>All caught up</h2>
+          <p>We are monitoring for new opportunities and will repopulate the queue after your next scan.</p>
+        </section>
+      ) : null}
 
-          {completedActions.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-4 text-gray-400">Completed</h2>
-              {completedActions.map((action: any) => (
-                <div key={action.id} className="bg-dark-900 border border-dark-800 rounded-2xl p-6 opacity-70">
-                  <div className="text-sm text-emerald-400 mb-2">✓ Action completed! +{action.solv_reward} $SOLV earned</div>
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-xl font-semibold">{action.title}</h3>
-                    <div className="text-xl font-bold text-gray-500">
-                      {action.impact_amount_display} <span className="text-sm text-gray-400">/ yr</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+      {pendingActions.map((action) => (
+        <section key={action.id} className="queue-card">
+          <div className="queue-meta">
+            {action.meta ?? 'Guided action'} · +{action.solv_reward ?? 0} $SOLV
+          </div>
+          <div className="queue-header">
+            <h2 className="queue-title">{action.title}</h2>
+            <div className="queue-impact">
+              {action.impact_amount_display} <small>/ yr</small>
             </div>
-          )}
+          </div>
+          <p className="queue-body">{action.description}</p>
+
+          <div className="detail-grid">
+            <div className="detail-card">
+              <div className="detail-label">Why</div>
+              <p>{action.meta?.split('·')[0]?.trim() || 'Financial leak'} is one of the highest-confidence opportunities in your account graph.</p>
+            </div>
+            <div className="detail-card">
+              <div className="detail-label">How</div>
+              <p>{action.description ?? 'Follow the exact external workflow shown here.'}</p>
+            </div>
+            <div className="detail-card">
+              <div className="detail-label">When</div>
+              <p>Do it during this trial window so the before/after effect is visible in your next score refresh.</p>
+            </div>
+            <div className="detail-card">
+              <div className="detail-label">Where</div>
+              <p>
+                {action.action_type === 'needs_cpa'
+                  ? 'Through your CPA or tax preparer workflow.'
+                  : action.action_type === 'manual'
+                    ? 'Through your employer or institution portal.'
+                    : 'Through the destination institution or linked account portal.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="inline-actions">
+            <form action="/api/actions" method="post">
+              <input type="hidden" name="actionId" value={action.id} />
+              <input type="hidden" name="status" value="completed" />
+              <button type="submit" className="primary-button compact-button">
+                Approve → +{action.solv_reward ?? 0} $SOLV
+              </button>
+            </form>
+            <form action="/api/actions" method="post">
+              <input type="hidden" name="actionId" value={action.id} />
+              <input type="hidden" name="status" value="dismissed" />
+              <button type="submit" className="ghost-button compact-button">
+                Dismiss
+              </button>
+            </form>
+            {action.action_type === 'needs_cpa' ? (
+              <DownloadMemoButton label="Generate CPA Memo" />
+            ) : null}
+          </div>
+
+          <div className="fine-print">
+            Educational only. Shadow CFO explains what to do and why, but does not directly execute financial transactions in beta.
+          </div>
+        </section>
+      ))}
+
+      {completedActions.length > 0 ? (
+        <div className="screen-stack">
+          <div className="section-heading">Completed</div>
+          {completedActions.map((action) => (
+            <section key={action.id} className="queue-card completed">
+              <div className="queue-meta">Completed · +{action.solv_reward ?? 0} $SOLV earned</div>
+              <div className="queue-header">
+                <h2 className="queue-title">{action.title}</h2>
+                <div className="queue-impact">
+                  {action.impact_amount_display} <small>/ yr</small>
+                </div>
+              </div>
+              <p className="queue-body">{action.description}</p>
+            </section>
+          ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
