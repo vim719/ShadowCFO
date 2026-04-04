@@ -1,0 +1,7 @@
+{
+  "name": "shadow-cfo",
+  "runtime": "node",
+  "buildCommand": "npm run build",
+  "startCommand": "npm start",
+  "envVars": []
+}

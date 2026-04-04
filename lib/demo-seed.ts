@@ -94,7 +94,7 @@ export async function seedDemoUser(userId: string, email: string) {
   const { data: insertedFindings, error: findingsError } = await supabase
     .from('findings')
     .insert(findings)
-    .select('id');
+    .select('id, category');
 
   if (findingsError) {
     console.error('Error seeding findings:', findingsError);
