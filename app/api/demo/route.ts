@@ -7,14 +7,20 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST() {
   try {
+    console.log('[DEMO] Creating demo user...');
     const email = `demo_${Date.now()}@shadowcfo.app`;
     const password = 'demo-' + Math.random().toString(36).substring(2, 15);
 
     const data = await createUser(email, password);
+    console.log('[DEMO] User created:', data.user?.id);
 
-    if (data.user) {
-      await seedDemoData(data.user.id, email);
+    if (!data.user) {
+      return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
     }
+
+    console.log('[DEMO] Seeding demo data...');
+    await seedDemoData(data.user.id, email);
+    console.log('[DEMO] Demo data seeded successfully');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -23,6 +29,7 @@ export async function POST() {
     });
 
     if (signInError) {
+      console.error('[DEMO] Sign in error:', signInError);
       return NextResponse.json({ error: signInError.message }, { status: 500 });
     }
 
@@ -30,8 +37,8 @@ export async function POST() {
       user: sessionData.user,
       session: sessionData.session,
     });
-  } catch (error) {
-    console.error('Demo creation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[DEMO] Error:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

@@ -17,10 +17,11 @@ export async function createUser(email: string, password: string) {
 }
 
 export async function seedDemoData(userId: string, email: string) {
+  console.log('[SEED] Starting demo data seed for user:', userId);
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   // Create profile
-  await supabase.from('user_profiles').insert({
+  const { error: profileError } = await supabase.from('user_profiles').insert({
     id: userId,
     email,
     full_name: 'Sarah',
@@ -29,6 +30,12 @@ export async function seedDemoData(userId: string, email: string) {
     solv_balance: 847,
     solvency_score: 71,
   });
+  
+  if (profileError) {
+    console.error('[SEED] Profile insert error:', profileError);
+    throw profileError;
+  }
+  console.log('[SEED] Profile created');
 
   // Create findings
   const findingsData = [
@@ -39,7 +46,13 @@ export async function seedDemoData(userId: string, email: string) {
     { user_id: userId, category: 'auto_loan', title: 'Your car loan interest may be deductible', description: 'You paid an estimated $2,420 in auto loan interest in 2025. Under OBBBA, qualifying vehicle loan interest up to $10,000 is now deductible.', impact_amount_cents: 242000, impact_amount_display: '$2,420', priority: 'low', status: 'active', badge: 'OBBBA', badge_color: 'amber', disclaimer: 'Deductibility varies.' },
   ];
 
-  const { data: insertedFindings } = await supabase.from('findings').insert(findingsData).select('id, category');
+  const { data: insertedFindings, error: findingsError } = await supabase.from('findings').insert(findingsData).select('id, category');
+  
+  if (findingsError) {
+    console.error('[SEED] Findings insert error:', findingsError);
+    throw findingsError;
+  }
+  console.log('[SEED] Findings created:', insertedFindings?.length);
 
   // Create fix actions
   const actionsData = [
@@ -48,13 +61,26 @@ export async function seedDemoData(userId: string, email: string) {
     { user_id: userId, finding_id: insertedFindings?.find(f => f.category === 'obbba')?.id, title: 'Send deduction summary to your CPA', description: 'We\'ve prepared a 1-page memo covering your deductions.', impact_amount_cents: 550000, impact_amount_display: '$5,500', meta: 'OBBBA Deductions · Needs CPA', solv_reward: 30, action_type: 'needs_cpa', status: 'pending' },
   ];
 
-  await supabase.from('fix_actions').insert(actionsData);
+  const { error: actionsError } = await supabase.from('fix_actions').insert(actionsData);
+  
+  if (actionsError) {
+    console.error('[SEED] Actions insert error:', actionsError);
+    throw actionsError;
+  }
+  console.log('[SEED] Actions created');
 
   // Create SOLV history
-  await supabase.from('solv_history').insert([
+  const { error: solvError } = await supabase.from('solv_history').insert([
     { user_id: userId, amount: 10, action: 'Fixed cash drag on Chase', source: 'fix_completed' },
     { user_id: userId, amount: 25, action: 'Emergency fund hit 3 months', source: 'milestone' },
     { user_id: userId, amount: 5, action: 'Completed Fluency Score quiz', source: 'quiz' },
     { user_id: userId, amount: 10, action: 'Score improved 10+ points', source: 'milestone' },
   ]);
+
+  if (solvError) {
+    console.error('[SEED] SOLV history insert error:', solvError);
+    throw solvError;
+  }
+  console.log('[SEED] SOLV history created');
+  console.log('[SEED] Demo data seeding complete!');
 }
