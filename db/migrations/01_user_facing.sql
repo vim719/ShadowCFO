@@ -91,22 +91,22 @@ CREATE POLICY "Users can view own findings" ON findings
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own findings" ON findings
   FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "System can insert findings" ON findings
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can insert own findings" ON findings
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 ALTER TABLE fix_actions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own actions" ON fix_actions
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own actions" ON fix_actions
   FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "System can insert actions" ON fix_actions
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can insert own actions" ON fix_actions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 ALTER TABLE solv_history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own solv history" ON solv_history
   FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "System can insert solv history" ON solv_history
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can insert own solv history" ON solv_history
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 ALTER TABLE quiz_results ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own quiz results" ON quiz_results
