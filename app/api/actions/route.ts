@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { createSupabaseAdminClient } from '@/lib/supabase';
+import { approveFix } from '@/src/api/fixes/approve';
 
-async function updateActionStatus(actionId: string, status: string) {
+async function updateActionStatus(actionId: string, status: string, additionalParams: any = {}) {
   const user = await getSession();
   if (!user) {
     throw new Error('Unauthorized');
@@ -55,30 +56,51 @@ async function updateActionStatus(actionId: string, status: string) {
 
   let awarded = 0;
 
-  if (status === 'completed' && action.status !== 'completed' && (action.solv_reward ?? 0) > 0) {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('solv_balance')
-      .eq('id', user.id)
-      .single();
+  if (status === 'completed' && action.status !== 'completed') {
+    // If it's a financial fix, it should ideally go through the hardened approveFix flow
+    // which requires consent and creates a shadow ledger entry.
+    if (additionalParams.consentSignature && additionalParams.requestId) {
+      const approveResult = await approveFix(supabase as any, {
+        fixId: actionId,
+        userId: user.id,
+        requestId: additionalParams.requestId,
+        consentSignature: additionalParams.consentSignature,
+        consentChallenge: additionalParams.consentChallenge,
+        fromAccount: additionalParams.fromAccount || 'primary',
+        toAccount: additionalParams.toAccount || 'savings',
+        amountCents: action.impact_amount_cents || 0,
+      });
 
-    const currentBalance = profile?.solv_balance ?? 0;
-    awarded = action.solv_reward ?? 0;
+      if (!approveResult.success) {
+        throw new Error(approveResult.error || 'Failed to approve fix through hardened flow.');
+      }
+    }
 
-    await supabase
-      .from('user_profiles')
-      .update({
-        solv_balance: currentBalance + awarded,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', user.id);
+    if ((action.solv_reward ?? 0) > 0) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('solv_balance')
+        .eq('id', user.id)
+        .single();
 
-    await supabase.from('solv_history').insert({
-      user_id: user.id,
-      amount: awarded,
-      action: `Completed: ${action.title}`,
-      source: 'fix_completed',
-    });
+      const currentBalance = profile?.solv_balance ?? 0;
+      awarded = action.solv_reward ?? 0;
+
+      await supabase
+        .from('user_profiles')
+        .update({
+          solv_balance: currentBalance + awarded,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+
+      await supabase.from('solv_history').insert({
+        user_id: user.id,
+        amount: awarded,
+        action: `Completed: ${action.title}`,
+        source: 'fix_completed',
+      });
+    }
   }
 
   revalidatePath('/dashboard');
@@ -109,7 +131,8 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { actionId, status } = await request.json();
+    const body = await request.json();
+    const { actionId, status } = body;
 
     if (!actionId || !status) {
       return NextResponse.json(
@@ -118,7 +141,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const result = await updateActionStatus(actionId, status);
+    const result = await updateActionStatus(actionId, status, body);
 
     return NextResponse.json({
       success: true,

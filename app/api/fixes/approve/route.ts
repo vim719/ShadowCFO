@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { approveFix, type ApproveFixParams } from "@/src/api/fixes/approve";
+import { getSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getSession();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
     const supabaseAdmin = createSupabaseAdminClient();
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -14,9 +23,16 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    if (body.userId !== user.id) {
+      return NextResponse.json(
+        { success: false, error: "FORBIDDEN: User ID mismatch" },
+        { status: 403 }
+      );
+    }
+
     const params: ApproveFixParams = {
       fixId: body.fixId,
-      userId: body.userId,
+      userId: user.id,
       requestId: body.requestId,
       consentSignature: body.consentSignature,
       consentChallenge: body.consentChallenge,
