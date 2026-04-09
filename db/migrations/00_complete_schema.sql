@@ -96,8 +96,8 @@ CREATE INDEX IF NOT EXISTS idx_consent_log_user_id ON consent_log(user_id);
 ALTER TABLE consent_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own consent log" ON consent_log
   FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "System can insert consent log" ON consent_log
-  FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can insert own consent log" ON consent_log
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- =====================================================
 -- WEBAUTHN CREDENTIALS (Commit 2: feat(auth): 1033-consent-gate)
