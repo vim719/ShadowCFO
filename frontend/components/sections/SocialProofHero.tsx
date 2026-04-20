@@ -16,117 +16,116 @@ const FEATURES = [
   "Shadow CFO logs every consent for audit-ready compliance.",
 ];
 
+const SHARDS_TOP = [
+  { color: "linear-gradient(90deg, #0070F3, #7928CA)", width: 400, x: 0 },
+  { color: "linear-gradient(90deg, #3291FF, #00C896)", width: 300, x: 500 },
+  { color: "linear-gradient(90deg, #7928CA, #0070F3)", width: 450, x: 900 },
+  { color: "linear-gradient(90deg, #00C896, #3291FF)", width: 350, x: 1500 },
+];
+
+const SHARDS_BOTTOM = [
+  { color: "linear-gradient(90deg, #F0A500, #D4AF37)", width: 400, x: 200 },
+  { color: "linear-gradient(90deg, #D4AF37, #F0A500)", width: 350, x: 700 },
+  { color: "linear-gradient(90deg, #F0A500, #D4AF37)", width: 500, x: 1200 },
+  { color: "linear-gradient(90deg, #D4AF37, #F0A500)", width: 300, x: 1800 },
+];
+
 export default function SocialProofHero() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden py-32 bg-white">
-      {/* ── FLYING COLORS (Geometric Shards) ── */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Shard Cluster Top */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[40%]">
-          {[
-            { color: "var(--accent-cyan)", delay: 0, x: -150, y: -20, rotate: -15, width: 300, height: 100, opacity: 0.05 },
-            { color: "var(--accent-solv)", delay: 2, x: 50, y: 30, rotate: -15, width: 250, height: 80, opacity: 0.03 },
-            { color: "var(--accent-cyan)", delay: 4, x: -300, y: 80, rotate: -15, width: 400, height: 120, opacity: 0.02 },
-          ].map((s, i) => (
-            <motion.div
-              key={`top-${i}`}
-              animate={{ 
-                x: [s.x - 10, s.x + 10, s.x - 10], 
-                y: [s.y - 10, s.y + 10, s.y - 10],
-                rotate: [s.rotate - 1, s.rotate + 1, s.rotate - 1]
-              }}
-              transition={{ repeat: Infinity, duration: 8 + s.delay, ease: "easeInOut" }}
-              className="absolute blur-2xl"
-              style={{
-                left: `calc(50% + ${s.x}px)`,
-                top: `${s.y}px`,
-                width: `${s.width}px`,
-                height: `${s.height}px`,
-                background: s.color,
-                opacity: s.opacity,
-                transform: `rotate(${s.rotate}deg) skewX(-20deg)`,
-                borderRadius: "20px",
-              }}
-            />
-          ))}
+    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-white">
+      {/* ── COMPOSIO STYLE FLYING BARS (SHARDS) ── */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Top Shards Ticker */}
+        <div className="absolute top-12 left-0 w-full h-32 overflow-hidden">
+          <motion.div
+            animate={{ x: [0, -2000] }}
+            transition={{ repeat: Infinity, duration: 25, ease: "linear" }}
+            className="flex gap-20 whitespace-nowrap"
+          >
+            {[...SHARDS_TOP, ...SHARDS_TOP].map((shard, i) => (
+              <div
+                key={i}
+                className="h-24 rounded-2xl blur-[2px] opacity-20"
+                style={{
+                  width: shard.width,
+                  background: shard.color,
+                  transform: "skewX(-25deg)",
+                }}
+              />
+            ))}
+          </motion.div>
         </div>
 
-        {/* Shard Cluster Bottom */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[40%]">
-          {[
-            { color: "var(--accent-amber)", delay: 1, x: 100, y: -50, rotate: 15, width: 350, height: 90, opacity: 0.04 },
-            { color: "var(--accent-gold)", delay: 3, x: -200, y: -20, rotate: 15, width: 300, height: 110, opacity: 0.03 },
-            { color: "var(--accent-amber)", delay: 5, x: 250, y: 20, rotate: 15, width: 450, height: 130, opacity: 0.02 },
-          ].map((s, i) => (
-            <motion.div
-              key={`bottom-${i}`}
-              animate={{ 
-                x: [s.x - 12, s.x + 12, s.x - 12], 
-                y: [s.y - 12, s.y + 12, s.y - 12],
-                rotate: [s.rotate - 1, s.rotate + 1, s.rotate - 1]
-              }}
-              transition={{ repeat: Infinity, duration: 10 + s.delay, ease: "easeInOut" }}
-              className="absolute blur-2xl"
-              style={{
-                left: `calc(50% + ${s.x}px)`,
-                bottom: `${Math.abs(s.y)}px`,
-                width: `${s.width}px`,
-                height: `${s.height}px`,
-                background: s.color,
-                opacity: s.opacity,
-                transform: `rotate(${s.rotate}deg) skewX(20deg)`,
-                borderRadius: "20px",
-              }}
-            />
-          ))}
+        {/* Bottom Shards Ticker */}
+        <div className="absolute bottom-12 left-0 w-full h-32 overflow-hidden">
+          <motion.div
+            animate={{ x: [-2000, 0] }}
+            transition={{ repeat: Infinity, duration: 30, ease: "linear" }}
+            className="flex gap-20 whitespace-nowrap"
+          >
+            {[...SHARDS_BOTTOM, ...SHARDS_BOTTOM].map((shard, i) => (
+              <div
+                key={i}
+                className="h-24 rounded-2xl blur-[2px] opacity-20"
+                style={{
+                  width: shard.width,
+                  background: shard.color,
+                  transform: "skewX(25deg)",
+                }}
+              />
+            ))}
+          </motion.div>
         </div>
-        
-        {/* Subtle radial center glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,112,243,0.01)_0%,transparent_70%)]" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-6 text-center">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-6 flex flex-col items-center justify-center min-h-[60vh]">
         {/* Massive Bold Intro */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8 }}
-          className="mb-24"
+          className="text-center mb-12"
         >
-          <h1 className="text-[clamp(3.5rem,10vw,8rem)] font-black tracking-tighter leading-[0.9] text-slate-900 mb-10 uppercase">
+          <h1 className="text-[clamp(2.5rem,8vw,6rem)] font-black tracking-tighter leading-[0.9] text-slate-900 uppercase">
             Meet Your <br />
-            <span className="inline-block mt-2" style={{ color: "var(--accent-gold)", textShadow: "0 10px 40px rgba(212,175,55,0.2)" }}>
+            <span className="inline-block mt-2" style={{ color: "var(--accent-gold)" }}>
               SHADOW CFO
             </span>
           </h1>
-          <div className="w-24 h-1.5 bg-slate-900 mx-auto mb-10 rounded-full" />
         </motion.div>
 
-        {/* Vertical Testimonial & Feature Loop */}
-        <div className="relative h-[500px] overflow-hidden mask-fade-y">
+        {/* Vertical Testimonial Sandwich */}
+        <div className="w-full relative h-[300px] flex items-center justify-center overflow-hidden mask-fade-y">
+          <div className="absolute inset-x-0 top-0 h-px bg-slate-100" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-slate-100" />
+          
           <motion.div
-            animate={{ y: [0, -2000] }}
-            transition={{ repeat: Infinity, duration: 35, ease: "linear" }}
-            className="flex flex-col gap-20"
+            animate={{ y: [0, -1500] }}
+            transition={{ repeat: Infinity, duration: 40, ease: "linear" }}
+            className="flex flex-col items-center gap-24"
           >
-            {[...TESTIMONIALS, ...FEATURES, ...TESTIMONIALS, ...FEATURES, ...TESTIMONIALS].map((item, i) => {
+            {[...TESTIMONIALS, ...FEATURES, ...TESTIMONIALS, ...FEATURES].map((item, i) => {
               const isFeature = typeof item === "string";
               return (
-                <div key={i} className="py-4">
+                <div key={i} className="text-center px-4">
                   {isFeature ? (
-                    <h2 className="text-4xl sm:text-5xl font-black text-slate-300 tracking-tight leading-tight uppercase">
-                      {item.split("Shadow CFO").map((part, index) => (
-                        <React.Fragment key={index}>
-                          {part}
-                          {index < item.split("Shadow CFO").length - 1 && (
-                            <span className="text-5xl sm:text-6xl" style={{ color: "var(--accent-gold)" }}>SHADOW CFO</span>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </h2>
+                    <div className="flex flex-col items-center">
+                      <div className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-4">Core Feature</div>
+                      <h2 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tighter leading-tight uppercase max-w-4xl">
+                        {item.split("Shadow CFO").map((part, index) => (
+                          <React.Fragment key={index}>
+                            {part}
+                            {index < item.split("Shadow CFO").length - 1 && (
+                              <span style={{ color: "var(--accent-gold)" }}>SHADOW CFO</span>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </h2>
+                    </div>
                   ) : (
                     <div className="max-w-4xl mx-auto">
-                      <p className="text-5xl sm:text-7xl font-black text-slate-900 mb-6 leading-[0.95] tracking-tighter">
+                      <div className="text-sm font-black uppercase tracking-[0.3em] text-slate-400 mb-6">Testimonial</div>
+                      <p className="text-5xl sm:text-7xl font-black text-slate-900 mb-8 leading-[0.9] tracking-tighter">
                         "{item.text.split("Shadow CFO").map((part, index) => (
                           <React.Fragment key={index}>
                             {part}
@@ -136,7 +135,7 @@ export default function SocialProofHero() {
                           </React.Fragment>
                         ))}"
                       </p>
-                      <cite className="text-xl font-black uppercase tracking-[0.2em] text-slate-400 not-italic">
+                      <cite className="text-xl font-black uppercase tracking-[0.2em] text-slate-500 not-italic">
                         — {item.author}
                       </cite>
                     </div>
@@ -149,17 +148,14 @@ export default function SocialProofHero() {
         
         {/* Scroll Indicator */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="mt-24 flex flex-col items-center gap-6"
+          animate={{ y: [0, 8, 0] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="mt-16 flex flex-col items-center gap-4"
         >
-          <span className="text-sm font-black uppercase tracking-[0.4em] text-slate-900">Scroll to Audit Leaks</span>
-          <motion.div 
-            animate={{ y: [0, 10, 0] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-            className="w-px h-24 bg-gradient-to-b from-slate-900 to-transparent" 
-          />
+          <span className="text-xs font-black uppercase tracking-[0.4em] text-slate-900">Scroll to Audit Leaks</span>
+          <div className="w-10 h-10 rounded-full border-2 border-slate-900 flex items-center justify-center">
+             <div className="w-1 h-2 bg-slate-900 rounded-full animate-bounce" />
+          </div>
         </motion.div>
       </div>
 
