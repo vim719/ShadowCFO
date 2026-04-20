@@ -61,7 +61,7 @@ export default function TrustSection() {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(0,198,224,0.03) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(0,112,243,0.02) 0%, transparent 70%)",
         }}
       />
 
@@ -125,17 +125,19 @@ export default function TrustSection() {
             Ledger entry preview
           </div>
           <div
-            className="inline-block text-left text-xs rounded-lg px-5 py-4"
+            className="inline-block text-left text-sm rounded-lg px-5 py-4"
             style={{
               fontFamily: "var(--font-mono)",
               background: "rgba(0,0,0,0.3)",
               color: "var(--text-muted)",
               border: "1px solid var(--border-subtle)",
+              width: "100%",
+              maxWidth: "600px",
             }}
           >
-            <div><span style={{ color: "var(--accent-cyan)" }}>DEBIT</span>  USD_PROXY:chase-4521   <span style={{ color: "var(--accent-amber)" }}>-$34.99</span>  PENDING</div>
-            <div><span style={{ color: "var(--accent-emerald)" }}>CREDIT</span> USD_PROXY:cancelled    <span style={{ color: "var(--accent-emerald)" }}>+$34.99</span>  PENDING</div>
-            <div className="mt-1 text-xs opacity-50">xShadowRequestId: req-abc123 · consent: signed · idempotent: ✓</div>
+            <div className="mb-1"><span style={{ color: "var(--accent-cyan)" }}>DEBIT</span>  USD_PROXY:chase-4521   <span style={{ color: "var(--accent-amber)" }}>-$34.99</span>  PENDING</div>
+            <div className="mb-2"><span style={{ color: "var(--accent-emerald)" }}>CREDIT</span> USD_PROXY:cancelled    <span style={{ color: "var(--accent-emerald)" }}>+$34.99</span>  PENDING</div>
+            <div className="text-xs border-t border-white/5 pt-2 mt-2" style={{ color: "var(--text-subtle)" }}>xShadowRequestId: req-abc123 · <span className="text-accent-emerald">consent: signed</span> · idempotent: ✓</div>
           </div>
         </motion.div>
       </div>

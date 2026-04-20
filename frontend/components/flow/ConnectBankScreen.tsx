@@ -47,24 +47,27 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
       className="min-h-screen flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden"
       style={{ background: "var(--bg-base)" }}
     >
-      {/* Background glow */}
+      {/* Background glow - soft blue */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 60% 50% at 50% 30%, rgba(0,198,224,0.05) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 60% at 50% 10%, rgba(0,112,243,0.04) 0%, transparent 80%)",
         }}
       />
 
       {/* Back button */}
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={onBack}
-        className="absolute top-6 left-6 flex items-center gap-1.5 text-sm transition-colors hover:opacity-100"
+        className="absolute top-6 left-6 gap-1.5 text-sm h-11 px-5 rounded-full border border-slate-100 bg-white/50 backdrop-blur-sm"
         style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
+        aria-label="Go back to previous screen"
       >
-        <ChevronLeft size={16} />
+        <ChevronLeft size={18} />
         Back
-      </button>
+      </Button>
 
       {/* Step indicator */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
@@ -135,10 +138,11 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="rounded-2xl p-5 mb-5"
+          className="rounded-[2rem] p-6 mb-6"
           style={{
             background: "var(--bg-surface)",
             border: "1px solid var(--border-subtle)",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.03)",
           }}
         >
           <div
@@ -152,33 +156,36 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
           >
             Select your bank
           </div>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {BANKS.map((bank) => {
               const isSelected = selected === bank.id;
               return (
                 <motion.button
                   key={bank.id}
-                  whileTap={{ scale: 0.94 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => !bank.isMore && setSelected(bank.id)}
-                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl transition-all duration-200 cursor-pointer"
+                  aria-label={`Select ${bank.name}`}
+                  aria-pressed={isSelected}
+                  className="flex flex-col items-center justify-center gap-2 p-3 min-h-[72px] rounded-2xl transition-all duration-200"
                   style={{
                     background: isSelected
-                      ? "rgba(0,198,224,0.1)"
-                      : "var(--bg-elevated)",
+                      ? "rgba(0,112,243,0.06)"
+                      : "#FFFFFF",
                     border: isSelected
-                      ? "1px solid rgba(0,198,224,0.4)"
-                      : "1px solid transparent",
+                      ? "2px solid var(--accent-cyan)"
+                      : "1px solid var(--border-subtle)",
                     cursor: bank.isMore ? "default" : "pointer",
+                    boxShadow: isSelected ? "0 4px 12px rgba(0,112,243,0.1)" : "none",
                   }}
                 >
-                  <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>{bank.logo}</span>
+                  <span style={{ fontSize: "1.5rem", lineHeight: 1 }}>{bank.logo}</span>
                   <span
                     className="text-center leading-tight"
                     style={{
-                      fontSize: "0.55rem",
-                      color: isSelected ? "var(--accent-cyan)" : "var(--text-muted)",
+                      fontSize: "0.75rem",
+                      color: isSelected ? "var(--accent-cyan)" : "var(--text-primary)",
                       fontFamily: "var(--font-body)",
-                      fontWeight: isSelected ? 600 : 400,
+                      fontWeight: isSelected ? 600 : 500,
                     }}
                   >
                     {bank.isMore ? bank.name : bank.name.split(" ")[0]}
@@ -254,12 +261,12 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
                 whileTap={{ scale: 0.98 }}
                 onClick={handleConnect}
                 disabled={!selected || isConnecting}
-                className="w-full h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all duration-200"
+                className="w-full h-14 rounded-full flex items-center justify-center gap-2 text-sm font-bold transition-all duration-200"
                 style={{
                   background: selected ? "var(--accent-cyan)" : "var(--bg-elevated)",
-                  color: selected ? "var(--bg-base)" : "var(--text-subtle)",
+                  color: selected ? "#FFFFFF" : "var(--text-subtle)",
                   fontFamily: "var(--font-display)",
-                  boxShadow: selected ? "0 0 30px rgba(0,198,224,0.25)" : "none",
+                  boxShadow: selected ? "0 10px 25px rgba(0,112,243,0.2)" : "none",
                   cursor: selected ? "pointer" : "not-allowed",
                   border: selected ? "none" : "1px solid var(--border-subtle)",
                 }}
@@ -293,7 +300,7 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
             </svg>
             <span
               className="text-xs"
-              style={{ color: "var(--text-subtle)", fontFamily: "var(--font-body)" }}
+              style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
             >
               Powered by Plaid · 256-bit encrypted
             </span>

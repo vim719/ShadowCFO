@@ -50,15 +50,15 @@ export default function AgentInsightCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "relative overflow-hidden rounded-xl border transition-all duration-300",
+        "relative overflow-hidden rounded-[2rem] border transition-all duration-300",
         isFixed
           ? "border-accent-emerald/30 bg-accent-emerald/5"
-          : "card-surface hover:border-accent-cyan/30",
+          : "bg-white hover:border-accent-cyan/30",
         className
       )}
       style={
         !isFixed
-          ? { boxShadow: "0 4px 24px rgba(0,0,0,0.3)" }
+          ? { boxShadow: "0 10px 40px rgba(0,0,0,0.04)" }
           : {}
       }
     >
@@ -86,12 +86,12 @@ export default function AgentInsightCard({
               <div className="flex items-center gap-2 mb-0.5">
                 <Badge
                   variant="outline"
-                  className="text-xs"
+                  className="text-xs py-0.5"
                   style={{
                     borderColor: "var(--border-subtle)",
                     color: "var(--text-muted)",
-                    fontSize: "0.65rem",
-                    letterSpacing: "0.08em",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.05em",
                     textTransform: "uppercase",
                   }}
                 >
@@ -152,17 +152,20 @@ export default function AgentInsightCard({
         </p>
 
         {/* Why I flagged this — expandable */}
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setShowReasoning((s) => !s)}
-          className="flex items-center gap-1.5 text-xs mb-4 transition-colors hover:opacity-80"
+          className="flex items-center gap-2 text-xs mb-4 h-10 px-3 -ml-3" /* Increased target size */
           style={{ color: "var(--accent-cyan)", fontFamily: "var(--font-body)" }}
+          aria-expanded={showReasoning}
         >
-          <Brain size={13} />
+          <Brain size={14} />
           Why did I flag this?
           <motion.span animate={{ rotate: showReasoning ? 180 : 0 }}>
-            <ChevronDown size={13} />
+            <ChevronDown size={14} />
           </motion.span>
-        </button>
+        </Button>
 
         <AnimatePresence>
           {showReasoning && (

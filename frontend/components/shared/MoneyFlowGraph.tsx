@@ -36,7 +36,7 @@ const EDGES: Edge[] = [
 export default function MoneyFlowGraph() {
   const nodeColor = (type: Node["type"]) => {
     if (type === "center") return "var(--accent-cyan)";
-    if (type === "bank") return "var(--bg-elevated)";
+    if (type === "bank") return "#F1F5F9";
     if (type === "savings") return "var(--accent-emerald)";
     return "var(--accent-amber)";
   };

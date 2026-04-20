@@ -33,7 +33,7 @@ export default function SolvSection() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 60% 50% at 80% 50%, rgba(155,109,255,0.05) 0%, transparent 60%)",
+            "radial-gradient(ellipse 60% 50% at 80% 50%, rgba(121, 40, 202, 0.04) 0%, transparent 60%)",
         }}
       />
 
@@ -58,16 +58,16 @@ export default function SolvSection() {
               enough to unlock the Architect tier and access the full CFO dashboard,
               automated sweeps, and priority AI processing.
             </p>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {[
                 "Cancel a duplicate subscription → +10 $SOLV",
                 "Redirect cash to HYSA → +15 $SOLV",
                 "Reduce a fee → +8 $SOLV",
                 "Streak bonus (7 days active) → +25 $SOLV",
               ].map((item) => (
-                <div key={item} className="flex items-center gap-2.5 text-sm">
+                <div key={item} className="flex items-center gap-3 text-sm font-medium">
                   <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    className="w-2 h-2 rounded-full shrink-0"
                     style={{ background: "var(--accent-solv)" }}
                   />
                   <span style={{ color: "var(--text-muted)" }}>{item}</span>
@@ -81,17 +81,17 @@ export default function SolvSection() {
             initial={{ opacity: 0, x: 30 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="card-surface p-7"
-            style={{ boxShadow: "var(--glow-solv)" }}
+            className="bg-white rounded-[2.5rem] border border-slate-100 p-8"
+            style={{ boxShadow: "0 20px 50px rgba(121, 40, 202, 0.05)" }}
           >
             {/* Current tier */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-8">
               <div>
                 <div className="text-label-upper mb-1" style={{ color: "var(--accent-solv)" }}>
                   Current Tier
                 </div>
                 <div
-                  className="text-2xl font-bold"
+                  className="text-3xl font-bold"
                   style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
                 >
                   {currentTier.name}
@@ -100,7 +100,7 @@ export default function SolvSection() {
               <div className="text-right">
                 <div className="text-label-upper mb-1">Balance</div>
                 <div
-                  className="text-mono-data text-xl font-bold"
+                  className="text-mono-data text-2xl font-bold"
                   style={{ color: "var(--accent-solv)" }}
                 >
                   {CURRENT_SOLV}
@@ -167,7 +167,7 @@ export default function SolvSection() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      <span className="text-xs font-medium" style={{ color: "var(--text-subtle)" }}>
                         {tier.description}
                       </span>
                       {isActive && (
@@ -176,7 +176,7 @@ export default function SolvSection() {
                           style={{
                             borderColor: "rgba(155,109,255,0.4)",
                             color: "var(--accent-solv)",
-                            fontSize: "0.6rem",
+                            fontSize: "0.7rem",
                           }}
                         >
                           current

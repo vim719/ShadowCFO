@@ -102,24 +102,27 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
       className="min-h-screen flex flex-col items-center px-4 py-16 relative overflow-hidden"
       style={{ background: "var(--bg-base)" }}
     >
-      {/* Background glow */}
+      {/* Background glow - soft amber/blue mix */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 60% 40% at 50% 20%, rgba(240,165,0,0.04) 0%, transparent 65%)",
+            "radial-gradient(ellipse 70% 50% at 50% 10%, rgba(240,165,0,0.03) 0%, transparent 80%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,112,243,0.02) 0%, transparent 70%)",
         }}
       />
 
       {/* Back button */}
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={onBack}
-        className="absolute top-6 left-6 flex items-center gap-1.5 text-sm transition-opacity hover:opacity-100"
+        className="absolute top-6 left-6 gap-1.5 text-sm h-11 px-5 rounded-full border border-slate-100 bg-white/50 backdrop-blur-sm"
         style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
+        aria-label="Go back to previous screen"
       >
-        <ChevronLeft size={16} />
+        <ChevronLeft size={18} />
         Back
-      </button>
+      </Button>
 
       {/* Step indicator */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
@@ -236,7 +239,7 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
                 >
                   {stat.value}
                 </div>
-                <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-subtle)" }}>
                   {stat.label}
                 </div>
               </div>
@@ -331,13 +334,15 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
             animate={{ opacity: 1 }}
             className="mt-5 flex justify-center"
           >
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onDone}
-              className="text-sm"
+              className="text-sm h-11"
               style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
             >
               Skip remaining → view dashboard
-            </button>
+            </Button>
           </motion.div>
         )}
 

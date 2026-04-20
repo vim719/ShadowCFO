@@ -23,22 +23,21 @@ export default function RealWorldSection() {
     >
 
 
-      {/* Subtle grid background */}
+      {/* Subtle grid background - light mode */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-5"
+        className="absolute inset-0 pointer-events-none opacity-[0.03]"
         style={{
           backgroundImage:
-            "linear-gradient(var(--border-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
+            "linear-gradient(var(--text-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--text-subtle) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
         }}
       />
 
-      {/* Amber leak glow */}
+      {/* Amber leak glow - softer */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background:
-            "radial-gradient(ellipse 50% 40% at 70% 60%, rgba(240,165,0,0.04) 0%, transparent 70%)",
+          background: "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(0,112,243,0.02) 0%, transparent 70%)",
         }}
       />
 
@@ -116,8 +115,8 @@ export default function RealWorldSection() {
             initial={{ opacity: 0, x: 40, scale: 0.97 }}
             animate={inView ? { opacity: 1, x: 0, scale: 1 } : {}}
             transition={{ duration: 0.7, delay: 0.2 }}
-            className="card-surface p-6 sm:p-8"
-            style={{ boxShadow: "var(--glow-cyan)" }}
+            className="bg-white rounded-[2rem] border border-slate-100 p-8"
+            style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.05)" }}
           >
             <div className="text-label-upper mb-4 text-center">Live Account Map</div>
             <MoneyFlowGraph />

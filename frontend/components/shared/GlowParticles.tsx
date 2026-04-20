@@ -11,13 +11,12 @@ interface Particle {
 }
 
 const COLORS = [
-  "rgba(0,198,224,",
-  "rgba(41,230,255,",
-  "rgba(0,200,150,",
-  "rgba(155,109,255,",
+  "rgba(0,112,243,", /* Accent blue */
+  "rgba(121,40,202,", /* Solv purple */
+  "rgba(0,200,150,", /* Emerald */
 ];
 
-export default function GlowParticles({ count = 60 }: { count?: number }) {
+export default function GlowParticles({ count = 60, color }: { count?: number, color?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const rafRef = useRef<number | null>(null);
@@ -59,7 +58,7 @@ export default function GlowParticles({ count = 60 }: { count?: number }) {
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 120) {
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(0,198,224,${0.04 * (1 - dist / 120)})`;
+            ctx.strokeStyle = `rgba(0,112,243,${0.06 * (1 - dist / 120)})`;
             ctx.lineWidth = 0.5;
             ctx.moveTo(pts[i]?.x ?? 0, pts[i]?.y ?? 0);
             ctx.lineTo(pts[j]?.x ?? 0, pts[j]?.y ?? 0);

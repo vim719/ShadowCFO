@@ -24,10 +24,10 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
       className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
       style={{ background: "var(--bg-base)" }}
     >
-      {/* Particle mesh */}
-      <GlowParticles count={65} />
+      {/* Particle mesh - subtler for light mode */}
+      <GlowParticles count={40} color="var(--accent-cyan)" />
 
-      {/* ── PORTAL: concentric glow rings ── */}
+      {/* ── PORTAL: soft light blue glows ── */}
       <motion.div
         style={{ scale: ringScale, opacity: ringOpacity }}
         className="absolute inset-0 pointer-events-none flex items-center justify-center"
@@ -36,47 +36,36 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
         <div
           className="absolute rounded-full"
           style={{
-            width: "min(900px, 120vw)",
-            height: "min(900px, 120vw)",
-            border: "1px solid rgba(0,198,224,0.06)",
-            boxShadow: "0 0 80px rgba(0,198,224,0.04) inset",
+            width: "min(1000px, 140vw)",
+            height: "min(1000px, 140vw)",
+            border: "1px solid rgba(0,112,243,0.05)",
+            background: "radial-gradient(circle, rgba(0,112,243,0.02) 0%, transparent 70%)",
           }}
         />
         {/* Mid ring */}
         <div
           className="absolute rounded-full"
           style={{
-            width: "min(640px, 90vw)",
-            height: "min(640px, 90vw)",
-            border: "1px solid rgba(0,198,224,0.1)",
-            boxShadow: "0 0 60px rgba(0,198,224,0.06) inset",
-          }}
-        />
-        {/* Inner ring */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: "min(420px, 70vw)",
-            height: "min(420px, 70vw)",
-            border: "1px solid rgba(0,198,224,0.18)",
-            boxShadow: "0 0 120px rgba(0,198,224,0.08) inset",
+            width: "min(700px, 100vw)",
+            height: "min(700px, 100vw)",
+            border: "1px solid rgba(0,112,243,0.08)",
           }}
         />
         {/* Core glow */}
         <div
           className="absolute rounded-full"
           style={{
-            width: "min(280px, 60vw)",
-            height: "min(280px, 60vw)",
+            width: "min(400px, 80vw)",
+            height: "min(400px, 80vw)",
             background:
-              "radial-gradient(ellipse at center, rgba(0,198,224,0.12) 0%, rgba(0,198,224,0.04) 50%, transparent 100%)",
+              "radial-gradient(ellipse at center, rgba(0,112,243,0.06) 0%, transparent 70%)",
           }}
         />
       </motion.div>
 
-      {/* Perspective grid floor */}
+      {/* Perspective grid floor - light theme variant */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none"
+        className="absolute bottom-0 left-0 right-0 h-96 pointer-events-none"
         style={{
           background:
             "linear-gradient(to bottom, transparent 0%, var(--bg-base) 100%)",
@@ -85,7 +74,7 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
       />
       <div
         className="absolute bottom-0 left-0 right-0 pointer-events-none overflow-hidden"
-        style={{ height: "260px", zIndex: 0 }}
+        style={{ height: "300px", zIndex: 0 }}
       >
         <div
           style={{
@@ -93,20 +82,20 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             bottom: 0,
             left: "-20%",
             right: "-20%",
-            height: "260px",
+            height: "300px",
             backgroundImage:
-              "linear-gradient(rgba(0,198,224,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,198,224,0.05) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
-            transform: "perspective(300px) rotateX(60deg)",
+              "linear-gradient(rgba(0,112,243,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,112,243,0.03) 1px, transparent 1px)",
+            backgroundSize: "80px 80px",
+            transform: "perspective(400px) rotateX(60deg)",
             transformOrigin: "bottom center",
-            opacity: 0.6,
+            opacity: 0.8,
           }}
         />
       </div>
 
       {/* Bottom fade */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none"
+        className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none"
         style={{
           background: "linear-gradient(to bottom, transparent, var(--bg-base))",
           zIndex: 2,
@@ -154,7 +143,7 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
         >
           Your accounts are
           <br />
-          <span style={{ color: "var(--accent-cyan)", textShadow: "0 0 40px rgba(0,198,224,0.4)" }}>
+          <span style={{ color: "var(--accent-cyan)" }}>
             bleeding{" "}
             <CounterAnimation target={347} prefix="$" suffix="/mo" duration={2400} />
           </span>
@@ -184,26 +173,27 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           <Button
             size="lg"
             onClick={onGetStarted}
-            className="font-bold text-base h-13 px-9 rounded-xl transition-all hover:scale-[1.03] active:scale-[0.98]"
+            className="font-bold text-base h-14 px-9 rounded-full transition-all hover:scale-[1.03] active:scale-[0.98]"
             style={{
               background: "var(--accent-cyan)",
-              color: "var(--bg-base)",
+              color: "#FFFFFF",
               fontFamily: "var(--font-display)",
-              boxShadow: "0 0 40px rgba(0,198,224,0.35), 0 4px 16px rgba(0,0,0,0.4)",
-              height: "3.25rem",
+              boxShadow: "0 10px 30px rgba(0,112,243,0.25)",
+              height: "3.75rem",
             }}
+            aria-label="Get started and see leaks"
           >
             See What I Found
-            <ArrowRight size={18} />
+            <ArrowRight size={20} />
           </Button>
           <Button
             variant="ghost"
             size="lg"
-            className="h-12 px-6 text-base"
+            className="h-14 px-8 text-base rounded-full"
             style={{
               color: "var(--text-muted)",
               border: "1px solid var(--border-subtle)",
-              borderRadius: "0.75rem",
+              height: "3.75rem",
             }}
             onClick={() => {
               const el = document.querySelector("#how-it-works");
@@ -229,8 +219,8 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           ].map((item) => (
             <span
               key={item}
-              className="text-xs"
-              style={{ color: "var(--text-subtle)", fontFamily: "var(--font-body)" }}
+              className="text-sm font-medium"
+              style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
             >
               {item}
             </span>
@@ -240,12 +230,17 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
 
       {/* Scroll indicator */}
       <motion.div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        animate={{ y: [0, 7, 0] }}
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 cursor-pointer p-4"
+        animate={{ y: [0, 8, 0] }}
         transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
-        style={{ color: "var(--text-subtle)", zIndex: 10 }}
+        style={{ color: "var(--text-muted)", zIndex: 10 }}
+        onClick={() => {
+          const el = document.querySelector("#how-it-works");
+          el?.scrollIntoView({ behavior: "smooth" });
+        }}
+        aria-label="Scroll down"
       >
-        <ChevronDown size={20} />
+        <ChevronDown size={24} />
       </motion.div>
     </section>
   );
