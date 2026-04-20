@@ -1,0 +1,148 @@
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface NavBarProps {
+  onGetStarted: () => void;
+}
+
+const NAV_LINKS = [
+  { label: "How it works", href: "#how-it-works" },
+  { label: "Trust", href: "#trust" },
+  { label: "$SOLV", href: "#solv" },
+];
+
+export default function NavBar({ onGetStarted }: NavBarProps) {
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <motion.nav
+      initial={{ y: -80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="fixed top-0 inset-x-0 z-50 transition-all duration-300"
+      style={{
+        background: scrolled
+          ? "rgba(8,11,24,0.85)"
+          : "transparent",
+        backdropFilter: scrolled ? "blur(20px)" : "none",
+        borderBottom: scrolled ? "1px solid var(--border-subtle)" : "none",
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        {/* Logo */}
+        <a
+          href="#"
+          className="flex items-center gap-2.5"
+          onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+        >
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(0,198,224,0.15)", border: "1px solid rgba(0,198,224,0.3)" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1L13 7L7 13" stroke="var(--accent-cyan)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M1 7H13" stroke="var(--accent-cyan)" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          <span
+            className="font-semibold text-sm tracking-tight"
+            style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+          >
+            Shadow CFO
+          </span>
+        </a>
+
+        {/* Desktop nav */}
+        <div className="hidden md:flex items-center gap-6">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              className="text-sm transition-colors hover:opacity-100"
+              style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.querySelector(link.href);
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden md:flex text-sm"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Sign in
+          </Button>
+          <Button
+            size="sm"
+            onClick={onGetStarted}
+            className="font-semibold text-sm"
+            style={{
+              background: "var(--accent-cyan)",
+              color: "var(--bg-base)",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            Start beta
+          </Button>
+          {/* Mobile menu */}
+          <button
+            className="md:hidden p-1.5"
+            style={{ color: "var(--text-muted)" }}
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile dropdown */}
+      {menuOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="md:hidden px-4 pb-4 pt-2"
+          style={{
+            background: "rgba(8,11,24,0.95)",
+            borderBottom: "1px solid var(--border-subtle)",
+          }}
+        >
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              className="block py-2.5 text-sm"
+              style={{ color: "var(--text-muted)" }}
+              onClick={(e) => {
+                e.preventDefault();
+                setMenuOpen(false);
+                const el = document.querySelector(link.href);
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              {link.label}
+            </a>
+          ))}
+        </motion.div>
+      )}
+    </motion.nav>
+  );
+}
