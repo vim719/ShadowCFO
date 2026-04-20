@@ -41,20 +41,11 @@ export default function NavBar({ onGetStarted }: NavBarProps) {
         {/* Logo */}
         <a
           href="#"
-          className="flex items-center gap-2.5"
+          className="flex items-center gap-2"
           onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
         >
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(0,198,224,0.15)", border: "1px solid rgba(0,198,224,0.3)" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1L13 7L7 13" stroke="var(--accent-cyan)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M1 7H13" stroke="var(--accent-cyan)" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </div>
           <span
-            className="font-semibold text-sm tracking-tight"
+            className="font-black text-2xl tracking-tighter uppercase"
             style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
           >
             Shadow CFO

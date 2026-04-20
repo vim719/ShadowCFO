@@ -10,6 +10,7 @@ import SolvSection from "@/components/sections/SolvSection";
 import FinalCTASection from "@/components/sections/FinalCTASection";
 import ConnectBankScreen from "@/components/flow/ConnectBankScreen";
 import FirstLeakScreen from "@/components/flow/FirstLeakScreen";
+import SocialProofHero from "@/components/sections/SocialProofHero";
 
 type View = "landing" | "connect" | "leak";
 
@@ -48,7 +49,10 @@ function App() {
       <div className="relative min-h-screen" style={{ background: "var(--bg-base)" }}>
         <NavBar onGetStarted={() => goTo("connect")} />
         <main>
-          <HeroSection onGetStarted={() => goTo("connect")} />
+          <SocialProofHero />
+          <div id="audit-hero">
+            <HeroSection onGetStarted={() => goTo("connect")} />
+          </div>
           <RealWorldSection />
           <HowItWorksSection onGetStarted={() => goTo("connect")} />
           <TrustSection />
