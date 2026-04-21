@@ -80,64 +80,80 @@ export default function SocialProofHero() {
   useEffect(() => {
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % TESTIMONIALS.length);
-    }, 6000);
+    }, 7000);
     return () => clearInterval(timer);
   }, []);
 
-  const topBars = useMemo(() => Array.from({ length: 15 }, (_, i) => i), []);
-  const bottomBars = useMemo(() => Array.from({ length: 15 }, (_, i) => i), []);
+  const topBars = useMemo(() => Array.from({ length: 18 }, (_, i) => i), []);
+  const bottomBars = useMemo(() => Array.from({ length: 18 }, (_, i) => i), []);
 
   return (
     <section 
       id="social-proof"
-      className="relative w-full h-screen min-h-[500px] overflow-hidden bg-[#F0F0F0] snap-start"
-      style={{ scrollSnapAlign: "start" }}
+      className="relative w-full h-screen min-h-[600px] overflow-hidden bg-bg-base noise-overlay snap-start border-b border-border-subtle"
     >
-      {/* ── GEOMETRIC BARS ── */}
-      <div className="absolute inset-0 pointer-events-none">
+      {/* ── MASTERCLASS GEOMETRIC ELEMENTS ── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {topBars.map(id => <Bar key={`top-${id}`} id={id} isTop={true} />)}
         {bottomBars.map(id => <Bar key={`bottom-${id}`} id={id} isTop={false} />)}
       </div>
 
-      {/* ── TESTIMONIAL CARD ── */}
+      {/* ── REFINED EDITORIAL CONTENT ── */}
       <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-full max-w-[680px] px-8 text-center"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-full max-w-[800px] px-8 text-center"
         aria-live="polite"
       >
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
+            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col items-center"
           >
+            <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-text-subtle mb-10 opacity-60">
+              Agentic Intelligence • Trusted Globally
+            </div>
+
             <blockquote 
-              className="font-medium text-[#1A1A2E] leading-[1.45] tracking-[-0.02em] mb-10"
-              style={{ fontSize: "clamp(1.4rem, 3.5vw, 2.2rem)" }}
+              className="font-bold text-text-primary leading-[1.3] tracking-[-0.03em] mb-14 font-display italic"
+              style={{ fontSize: "clamp(1.6rem, 4.5vw, 2.6rem)" }}
             >
               “{TESTIMONIALS[index].quote}”
             </blockquote>
 
-            <div className="flex items-center gap-3.5">
-              <img 
-                src={TESTIMONIALS[index].avatar} 
-                alt="" 
-                className="w-[44px] h-[44px] rounded-full object-cover"
-              />
-              <div className="text-left">
-                <div className="font-medium text-[#1A1A2E] text-[15px]">
+            <div className="flex flex-col items-center gap-5">
+              <div className="relative">
+                <img 
+                  src={TESTIMONIALS[index].avatar} 
+                  alt="" 
+                  className="w-[52px] h-[52px] rounded-full object-cover border-2 border-bg-base shadow-lg ring-1 ring-border-subtle"
+                />
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-accent-emerald rounded-full border-2 border-bg-base" />
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-text-primary text-[16px] tracking-tight">
                   {TESTIMONIALS[index].author}
                 </div>
-                <div className="text-[#6B7280] text-[14px] font-normal">
-                  {TESTIMONIALS[index].role}, {TESTIMONIALS[index].company}
+                <div className="text-text-muted text-[13px] font-medium mt-1 tracking-wide uppercase opacity-80">
+                  {TESTIMONIALS[index].role} <span className="mx-2 opacity-30">|</span> {TESTIMONIALS[index].company}
                 </div>
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* ── SUBTLE SCROLL PROMPT ── */}
+      <motion.div
+        animate={{ y: [0, 8, 0] }}
+        transition={{ repeat: Infinity, duration: 3 }}
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 pointer-events-none opacity-40"
+      >
+        <div className="w-px h-12 bg-gradient-to-b from-border-subtle to-transparent" />
+        <span className="text-[9px] font-black uppercase tracking-[0.5em] text-text-muted">Enter Audit</span>
+      </motion.div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes drift {
@@ -147,11 +163,12 @@ export default function SocialProofHero() {
         .bar-animation {
           animation: drift var(--duration) linear infinite;
           animation-delay: var(--delay);
+          will-change: transform;
         }
         @media (max-width: 768px) {
           .bar-animation {
-            opacity: 0.6 !important;
-            transform: scale(0.7) rotate(var(--rotation)) !important;
+            opacity: 0.5 !important;
+            transform: scale(0.6) rotate(var(--rotation)) !important;
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -159,10 +176,8 @@ export default function SocialProofHero() {
             animation: none !important;
           }
         }
-        html {
-          scroll-behavior: smooth;
-        }
       `}} />
     </section>
   );
 }
+
