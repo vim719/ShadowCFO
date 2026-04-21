@@ -1,111 +1,137 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const SHARDS_DATA = [
-  { w: 12, h: 140, opacity: 0.8, color: "linear-gradient(180deg, #3B82F6, #22D3EE)" },
-  { w: 22, h: 180, opacity: 0.5, color: "linear-gradient(180deg, #6366F1, #3B82F6)" },
-  { w: 10, h: 110, opacity: 0.9, color: "linear-gradient(180deg, #22D3EE, #6366F1)" },
-  { w: 18, h: 220, opacity: 0.4, color: "linear-gradient(180deg, #3B82F6, #22D3EE)" },
-  { w: 14, h: 160, opacity: 0.7, color: "linear-gradient(180deg, #6366F1, #3B82F6)" },
-  { w: 25, h: 240, opacity: 0.3, color: "linear-gradient(180deg, #22D3EE, #6366F1)" },
-  { w: 8, h: 120, opacity: 0.9, color: "linear-gradient(180deg, #3B82F6, #22D3EE)" },
-  { w: 20, h: 190, opacity: 0.6, color: "linear-gradient(180deg, #6366F1, #3B82F6)" },
+const COLORS = [
+  "#2563EB", "#06B6D4", "#6366F1", "#8B5CF6", 
+  "#FFCF00", "#F72585", "#10B981", "#FF6B6B"
 ];
 
-const TESTIMONIALS_DATA = [
+const TESTIMONIALS = [
   {
     quote: "Shadow CFO turned my messy books into a truly plug-and-play experience; it just worked with our banking stack out of the box. We stopped burning time on one-off reconciliation.",
     author: "Sharon Yeh",
-    title: "Staff Product Manager, Deepgram",
+    role: "Staff Product Manager",
+    company: "Deepgram",
     avatar: "https://i.pravatar.cc/150?u=sharon"
   },
   {
     quote: "Shadow CFO is the first AI that actually surfaces real money leaks. We found $4,200 in idle seats within the first 48 hours of connecting our accounts.",
     author: "Sarah Yeh",
-    title: "Head of Operations, Stealth Startup",
+    role: "Head of Operations",
+    company: "Stealth Startup",
     avatar: "https://i.pravatar.cc/150?u=sarah"
+  },
+  {
+    quote: "The most powerful financial tool I've ever used. Shadow CFO handles the leaks while we focus on scaling the business.",
+    author: "Michael B.",
+    role: "Managing Partner",
+    company: "Ventures Inc",
+    avatar: "https://i.pravatar.cc/150?u=michael"
   }
 ];
 
-function ShardCluster({ reverse = false }: { reverse?: boolean }) {
-  return (
-    <div className="relative w-full h-[320px] flex items-center justify-center overflow-hidden">
-      <motion.div
-        animate={{ x: reverse ? [-300, 300] : [300, -300] }}
-        transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
-        className="flex gap-1.5 items-end px-20"
-      >
-        {[...SHARDS_DATA, ...SHARDS_DATA, ...SHARDS_DATA, ...SHARDS_DATA].map((s, i) => (
-          <div
-            key={i}
-            className="rounded-full shrink-0"
-            style={{
-              width: s.w,
-              height: s.h,
-              background: s.color,
-              opacity: s.opacity,
-              transform: `skewX(-15deg) translateY(${i % 4 === 0 ? "0px" : i % 4 === 1 ? "40px" : i % 4 === 2 ? "20px" : "60px"})`,
-              filter: "blur(0.5px)",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
-            }}
-          />
-        ))}
-      </motion.div>
-    </div>
-  );
+interface BarProps {
+  id: number;
+  isTop: boolean;
 }
 
-export default function SocialProofHero() {
-  const [index, setIndex] = React.useState(0);
+const Bar = ({ isTop }: BarProps) => {
+  const config = useMemo(() => {
+    const width = Math.floor(Math.random() * (22 - 6 + 1)) + 6;
+    const height = Math.floor(Math.random() * (280 - 120 + 1)) + 120;
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const opacity = (Math.random() * (0.95 - 0.82) + 0.82).toFixed(2);
+    const duration = Math.floor(Math.random() * (14 - 6 + 1)) + 6;
+    const delay = -(Math.random() * duration); // Negative delay for mid-flight start
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    const top = isTop 
+      ? Math.floor(Math.random() * 50) - 20 // -20% to 30% of viewport
+      : Math.floor(Math.random() * 55) + 55; // 55% to 110% of viewport
+    const rotation = Math.floor(Math.random() * 16) - 8; // -8deg to 8deg skew/rotate
+    
+    return { width, height, color, opacity, duration, delay, direction, top, rotation };
+  }, [isTop]);
 
-  React.useEffect(() => {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute bar-animation"
+      style={{
+        width: config.width,
+        height: config.height,
+        background: config.color,
+        opacity: config.opacity,
+        top: `${config.top}%`,
+        borderRadius: "4px",
+        zIndex: Math.floor(Math.random() * 3) + 1,
+        "--duration": `${config.duration}s`,
+        "--delay": `${config.delay}s`,
+        "--distance": config.direction === 1 ? "160vw" : "-160vw",
+        "--start-x": config.direction === 1 ? "-60vw" : "160vw",
+        "--rotation": `${config.rotation}deg`,
+      } as any}
+    />
+  );
+};
+
+export default function SocialProofHero() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
     const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % TESTIMONIALS_DATA.length);
-    }, 7000);
+      setIndex((prev) => (prev + 1) % TESTIMONIALS.length);
+    }, 6000);
     return () => clearInterval(timer);
   }, []);
 
+  const topBars = useMemo(() => Array.from({ length: 15 }, (_, i) => i), []);
+  const bottomBars = useMemo(() => Array.from({ length: 15 }, (_, i) => i), []);
+
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-between overflow-hidden bg-[#F9FAFB] py-10">
-      {/* ── TOP SHARD CLUSTER ── */}
-      <div className="w-full">
-        <ShardCluster />
+    <section 
+      id="social-proof"
+      className="relative w-full h-screen min-h-[500px] overflow-hidden bg-[#F0F0F0] snap-start"
+      style={{ scrollSnapAlign: "start" }}
+    >
+      {/* ── GEOMETRIC BARS ── */}
+      <div className="absolute inset-0 pointer-events-none">
+        {topBars.map(id => <Bar key={`top-${id}`} id={id} isTop={true} />)}
+        {bottomBars.map(id => <Bar key={`bottom-${id}`} id={id} isTop={false} />)}
       </div>
 
-      {/* ── TESTIMONIAL SANDWICH ── */}
-      <div className="relative z-10 max-w-2xl mx-auto px-6 flex flex-col items-center">
+      {/* ── TESTIMONIAL CARD ── */}
+      <div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-full max-w-[680px] px-8 text-center"
+        aria-live="polite"
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col items-center text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center"
           >
-            <blockquote className="text-[1.85rem] sm:text-[2.1rem] font-bold text-[#111827] leading-[1.3] mb-12 tracking-tight max-w-2xl">
-              “{TESTIMONIALS_DATA[index]?.quote.split("Shadow CFO").map((part, i) => (
-                <React.Fragment key={i}>
-                  {part}
-                  {i < (TESTIMONIALS_DATA[index]?.quote.split("Shadow CFO").length || 0) - 1 && (
-                    <span style={{ color: "var(--accent-gold)", fontWeight: 900 }}>SHADOW CFO</span>
-                  )}
-                </React.Fragment>
-              ))}”
+            <blockquote 
+              className="font-medium text-[#1A1A2E] leading-[1.45] tracking-[-0.02em] mb-10"
+              style={{ fontSize: "clamp(1.4rem, 3.5vw, 2.2rem)" }}
+            >
+              “{TESTIMONIALS[index].quote}”
             </blockquote>
 
-            <div className="flex items-center gap-4 text-left">
-              <img
-                src={TESTIMONIALS_DATA[index]?.avatar}
-                alt={TESTIMONIALS_DATA[index]?.author}
-                className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+            <div className="flex items-center gap-3.5">
+              <img 
+                src={TESTIMONIALS[index].avatar} 
+                alt="" 
+                className="w-[44px] h-[44px] rounded-full object-cover"
               />
-              <div className="flex flex-col">
-                <div className="font-extrabold text-[#111827] text-[1.05rem] leading-tight">
-                  {TESTIMONIALS_DATA[index]?.author}
+              <div className="text-left">
+                <div className="font-medium text-[#1A1A2E] text-[15px]">
+                  {TESTIMONIALS[index].author}
                 </div>
-                <div className="text-[#6B7280] text-[0.875rem] font-semibold mt-1">
-                  {TESTIMONIALS_DATA[index]?.title}
+                <div className="text-[#6B7280] text-[14px] font-normal">
+                  {TESTIMONIALS[index].role}, {TESTIMONIALS[index].company}
                 </div>
               </div>
             </div>
@@ -113,14 +139,28 @@ export default function SocialProofHero() {
         </AnimatePresence>
       </div>
 
-      {/* ── BOTTOM SHARD CLUSTER ── */}
-      <div className="w-full rotate-180">
-        <ShardCluster reverse />
-      </div>
-
       <style dangerouslySetInnerHTML={{ __html: `
-        :root {
-          --accent-gold: #D4AF37;
+        @keyframes drift {
+          from { transform: translateX(var(--start-x)) rotate(var(--rotation)); }
+          to { transform: translateX(var(--distance)) rotate(var(--rotation)); }
+        }
+        .bar-animation {
+          animation: drift var(--duration) linear infinite;
+          animation-delay: var(--delay);
+        }
+        @media (max-width: 768px) {
+          .bar-animation {
+            opacity: 0.6 !important;
+            transform: scale(0.7) rotate(var(--rotation)) !important;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .bar-animation {
+            animation: none !important;
+          }
+        }
+        html {
+          scroll-behavior: smooth;
         }
       `}} />
     </section>
