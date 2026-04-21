@@ -112,16 +112,23 @@ export default function SocialProofHero() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col items-center"
           >
-            <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-text-subtle mb-10 opacity-60">
-              Agentic Intelligence • Trusted Globally
-            </div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted mb-10">
+                  Agentic Intelligence • Trusted Globally
+                </div>
 
-            <blockquote 
-              className="font-bold text-text-primary leading-[1.3] tracking-[-0.03em] mb-14 font-display italic"
-              style={{ fontSize: "clamp(1.6rem, 4.5vw, 2.6rem)" }}
-            >
-              “{TESTIMONIALS[index].quote}”
-            </blockquote>
+                <blockquote 
+                  className="font-bold text-text-primary leading-[1.3] tracking-[-0.03em] mb-14 font-display italic"
+                  style={{ fontSize: "clamp(1.6rem, 4.5vw, 2.6rem)" }}
+                >
+                  “{TESTIMONIALS[index].quote.split("SHADOW CFO").map((part, i) => (
+                    <React.Fragment key={i}>
+                      {part}
+                      {i < (TESTIMONIALS[index].quote.split("SHADOW CFO").length || 0) - 1 && (
+                        <span style={{ color: "var(--accent-gold-text)", fontWeight: 900 }}>SHADOW CFO</span>
+                      )}
+                    </React.Fragment>
+                  ))}”
+                </blockquote>
 
             <div className="flex flex-col items-center gap-5">
               <div className="relative">
@@ -145,15 +152,21 @@ export default function SocialProofHero() {
         </AnimatePresence>
       </div>
 
-      {/* ── SUBTLE SCROLL PROMPT ── */}
-      <motion.div
-        animate={{ y: [0, 8, 0] }}
-        transition={{ repeat: Infinity, duration: 3 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 pointer-events-none opacity-40"
+      {/* ── INTERACTIVE SCROLL PROMPT ── */}
+      <button
+        onClick={() => document.getElementById("audit-hero")?.scrollIntoView({ behavior: "smooth" })}
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 cursor-pointer z-20 group min-h-[44px] min-w-[44px] justify-center"
+        aria-label="Scroll to Audit Section"
       >
-        <div className="w-px h-12 bg-gradient-to-b from-border-subtle to-transparent" />
-        <span className="text-[9px] font-black uppercase tracking-[0.5em] text-text-muted">Enter Audit</span>
-      </motion.div>
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ repeat: Infinity, duration: 3 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="w-px h-12 bg-gradient-to-b from-accent-cyan to-transparent group-hover:h-16 transition-all duration-300" />
+          <span className="text-[9px] font-black uppercase tracking-[0.5em] text-text-primary group-hover:text-accent-cyan transition-colors">Enter Audit</span>
+        </motion.div>
+      </button>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes drift {

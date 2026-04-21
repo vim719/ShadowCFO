@@ -75,16 +75,14 @@ export default function NavBar({ onGetStarted }: NavBarProps) {
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
-            size="sm"
             className="hidden md:flex text-sm"
             style={{ color: "var(--text-muted)" }}
           >
             Sign in
           </Button>
           <Button
-            size="sm"
             onClick={onGetStarted}
-            className="font-semibold text-sm"
+            className="font-semibold text-sm h-11 px-6"
             style={{
               background: "var(--accent-cyan)",
               color: "var(--bg-base)",

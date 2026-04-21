@@ -15,6 +15,7 @@
   --accent-emerald: #00C896;
   --accent-amber: #F0A500;
   --accent-gold: #D4AF37; /* Metallic Gold */
+  --accent-gold-text: #856404; /* High-contrast Gold for text accessibility */
   --accent-solv: #7928CA; /* Deep purple-blue for Solv */
   --accent-red: #E00;
 
