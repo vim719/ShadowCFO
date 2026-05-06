@@ -68,6 +68,7 @@ const LEAKS: LeakInsight[] = [
 
 export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps) {
   const [leaks, setLeaks] = useState<LeakInsight[]>(LEAKS);
+  const [scanInfo, setScanInfo] = useState<{ filename?: string; documentId?: string; transactionsCount?: number } | null>(null);
   const [fixedIds, setFixedIds] = useState<Set<string>>(new Set());
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
@@ -77,8 +78,14 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
       const raw = sessionStorage.getItem("shadowcfo:lastScan");
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed?.findings) && parsed.findings.length > 0) {
-        setLeaks(parsed.findings);
+      if (parsed?.documentId) {
+        setScanInfo({
+          filename: typeof parsed?.filename === "string" ? parsed.filename : undefined,
+          documentId: typeof parsed?.documentId === "string" ? parsed.documentId : undefined,
+          transactionsCount: typeof parsed?.meta?.transactionsCount === "number" ? parsed.meta.transactionsCount : undefined,
+        });
+        if (Array.isArray(parsed?.findings)) setLeaks(parsed.findings);
+        else setLeaks([]);
       }
     } catch {
       // ignore
@@ -226,6 +233,12 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
               ? "All leaks reviewed. Great work."
               : `That's $${Math.round(totals.totalAnnual).toLocaleString()}/year — here's exactly what I found and why:`}
           </p>
+          {scanInfo?.filename && (
+            <p className="text-xs mt-2" style={{ color: "var(--text-subtle)", fontFamily: "var(--font-body)" }}>
+              Uploaded statement: {scanInfo.filename}
+              {typeof scanInfo.transactionsCount === "number" ? ` · Parsed ${scanInfo.transactionsCount} rows` : ""}
+            </p>
+          )}
         </motion.div>
 
         {/* Summary bar */}
@@ -276,7 +289,26 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
         {/* Leak cards */}
         <div className="space-y-3">
           <AnimatePresence>
-            {leaks.map((leak, i) => {
+            {leaks.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl p-6 text-center"
+                style={{
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border-subtle)",
+                  boxShadow: "0 10px 40px rgba(0,0,0,0.03)",
+                }}
+              >
+                <div className="text-sm font-bold mb-2" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
+                  No leaks found in this statement (yet)
+                </div>
+                <div className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                  This scan currently flags recurring sub-$50 charges. If your statement format is different, we may need a stronger parser (or OCR for scanned PDFs).
+                </div>
+              </motion.div>
+            ) : (
+              leaks.map((leak, i) => {
               const isSkipped = skippedIds.has(leak.id);
               if (isSkipped) return null;
               return (
@@ -296,7 +328,8 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
                   />
                 </motion.div>
               );
-            })}
+              })
+            )}
           </AnimatePresence>
         </div>
 

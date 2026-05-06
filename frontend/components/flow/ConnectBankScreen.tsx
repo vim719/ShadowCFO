@@ -117,7 +117,13 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
       if (!res.ok) throw new Error(data?.error || "Upload failed");
       sessionStorage.setItem(
         "shadowcfo:lastScan",
-        JSON.stringify({ documentId: data.documentId, findings: data.findings, meta: data.meta })
+        JSON.stringify({
+          documentId: data.documentId,
+          filename: data.filename,
+          storage: data.storage,
+          findings: data.findings,
+          meta: data.meta,
+        })
       );
       onContinue();
     } catch (e) {

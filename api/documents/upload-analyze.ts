@@ -21,6 +21,7 @@ type ParsedTransaction = {
   date: string; // YYYY-MM-DD
   merchant: string;
   amount: number; // absolute value, USD
+  direction: "expense" | "income";
   rawLine: string;
 };
 
@@ -70,6 +71,47 @@ function parseAmount(raw: string): number | null {
   return Math.abs(n);
 }
 
+function parseSignedDirection(line: string): "expense" | "income" | null {
+  if (/\+\s*\$/.test(line) || /\bIncome\+/.test(line)) return "income";
+  if (/\-\s*\$/.test(line) || /\b[A-Za-z]+\-\b/.test(line)) return "expense";
+  // Most statement rows include +/- markers. If missing, treat as unknown.
+  return null;
+}
+
+const MONTHS: Record<string, number> = {
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  may: 5,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
+
+function toIsoDateFromMonthDay(monthToken: string, dayToken: string, year: number): string | null {
+  const month = MONTHS[monthToken.toLowerCase()];
+  const day = Number(dayToken);
+  if (!month || !Number.isFinite(day) || day < 1 || day > 31) return null;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function extractTransactionsFromText(text: string): ParsedTransaction[] {
   const lines = text
     .split(/\r?\n/)
@@ -77,27 +119,45 @@ function extractTransactionsFromText(text: string): ParsedTransaction[] {
     .filter(Boolean);
 
   const txs: ParsedTransaction[] = [];
+  let currentYear: number | null = null;
 
   for (const line of lines) {
+    // Track section year from headers like "October 2025" or "March 2026".
+    const header = line.match(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(20\d{2})\b/i);
+    if (header?.[2]) {
+      const y = Number(header[2]);
+      if (Number.isFinite(y)) currentYear = y;
+      continue;
+    }
+
     // Heuristic: find a date + at least one $ amount on the same line.
-    const dateMatch = line.match(/\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/);
-    if (!dateMatch) continue;
-    const rawDate = dateMatch[1];
-    if (!rawDate) continue;
-    const isoDate = toIsoDate(rawDate);
+    // Supports both "10/04/2025" and "Oct 04" styles.
+    let isoDate: string | null = null;
+    const numericDateMatch = line.match(/\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/);
+    if (numericDateMatch?.[1]) isoDate = toIsoDate(numericDateMatch[1]);
+
+    if (!isoDate) {
+      const monthDay = line.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2})\b/i);
+      if (monthDay?.[1] && monthDay?.[2] && currentYear) {
+        isoDate = toIsoDateFromMonthDay(monthDay[1], monthDay[2], currentYear);
+      }
+    }
+
     if (!isoDate) continue;
 
-    const amountMatch = line.match(/(?:^|[^\d])(-?\$?\d{1,3}(?:,\d{3})*(?:\.\d{2})?)(?:[^\d]|$)/);
-    if (!amountMatch) continue;
-    const rawAmount = amountMatch[1];
-    if (!rawAmount) continue;
+    const direction = parseSignedDirection(line);
+    if (!direction) continue;
+
+    const amountMatch = line.match(/([+-])\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+    if (!amountMatch?.[2]) continue;
+    const rawAmount = amountMatch[2];
     const amount = parseAmount(rawAmount);
     if (!amount || amount <= 0) continue;
 
     // Merchant guess: remove date + amount and trim.
     const merchantGuess = normalizeMerchant(
       line
-        .replace(dateMatch[0], " ")
+        .replace(numericDateMatch?.[0] ?? "", " ")
         .replace(rawAmount, " ")
         .replace(/\s+/g, " ")
         .trim()
@@ -108,6 +168,7 @@ function extractTransactionsFromText(text: string): ParsedTransaction[] {
       date: isoDate,
       merchant: merchantGuess,
       amount: Math.round(amount * 100) / 100,
+      direction,
       rawLine: line,
     });
   }
@@ -124,6 +185,7 @@ function daysBetween(a: string, b: string) {
 function findZombieSubscriptions(txs: ParsedTransaction[]): LeakInsight[] {
   const byMerchant = new Map<string, ParsedTransaction[]>();
   for (const tx of txs) {
+    if (tx.direction !== "expense") continue;
     if (tx.amount >= 50) continue; // per prompt: under $50
     if (tx.amount < 1) continue;
     const list = byMerchant.get(tx.merchant) ?? [];
@@ -275,6 +337,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return json(res, 200, {
       documentId,
       storage: { bucket, path: storagePath },
+      filename: safeName,
       findings,
       meta: { transactionsCount: transactions.length },
     });
