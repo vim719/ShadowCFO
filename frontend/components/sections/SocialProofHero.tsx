@@ -87,6 +87,11 @@ export default function SocialProofHero() {
   const topBars = useMemo(() => Array.from({ length: 18 }, (_, i) => i), []);
   const bottomBars = useMemo(() => Array.from({ length: 18 }, (_, i) => i), []);
 
+  const fallback = TESTIMONIALS[0];
+  if (!fallback) return null;
+  const current = TESTIMONIALS[index] ?? fallback;
+  const quoteParts = current.quote.split("SHADOW CFO");
+
   return (
     <section 
       id="social-proof"
@@ -120,10 +125,10 @@ export default function SocialProofHero() {
                   className="font-bold text-text-primary leading-[1.3] tracking-[-0.03em] mb-14 font-display italic"
                   style={{ fontSize: "clamp(1.6rem, 4.5vw, 2.6rem)" }}
                 >
-                  “{TESTIMONIALS[index].quote.split("SHADOW CFO").map((part, i) => (
+                  “{quoteParts.map((part, i) => (
                     <React.Fragment key={i}>
                       {part}
-                      {i < (TESTIMONIALS[index].quote.split("SHADOW CFO").length || 0) - 1 && (
+                      {i < quoteParts.length - 1 && (
                         <span style={{ color: "var(--accent-gold-text)", fontWeight: 900 }}>SHADOW CFO</span>
                       )}
                     </React.Fragment>
@@ -133,7 +138,7 @@ export default function SocialProofHero() {
             <div className="flex flex-col items-center gap-5">
               <div className="relative">
                 <img 
-                  src={TESTIMONIALS[index].avatar} 
+                  src={current.avatar} 
                   alt="" 
                   className="w-[52px] h-[52px] rounded-full object-cover border-2 border-bg-base shadow-lg ring-1 ring-border-subtle"
                 />
@@ -141,10 +146,10 @@ export default function SocialProofHero() {
               </div>
               <div className="text-center">
                 <div className="font-bold text-text-primary text-[16px] tracking-tight">
-                  {TESTIMONIALS[index].author}
+                  {current.author}
                 </div>
                 <div className="text-text-muted text-[13px] font-medium mt-1 tracking-wide uppercase opacity-80">
-                  {TESTIMONIALS[index].role} <span className="mx-2 opacity-30">|</span> {TESTIMONIALS[index].company}
+                  {current.role} <span className="mx-2 opacity-30">|</span> {current.company}
                 </div>
               </div>
             </div>
@@ -193,4 +198,3 @@ export default function SocialProofHero() {
     </section>
   );
 }
-

@@ -31,6 +31,9 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
   const [selected, setSelected] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleConnect = () => {
     if (!selected || isConnecting || connected) return;
@@ -40,6 +43,28 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
       setConnected(true);
       setTimeout(onContinue, 900);
     }, 1800);
+  };
+
+  const handleUpload = async () => {
+    if (!statementFile || isUploading) return;
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.append("file", statementFile, statementFile.name);
+      const res = await fetch("/api/documents/upload-analyze", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Upload failed");
+      sessionStorage.setItem(
+        "shadowcfo:lastScan",
+        JSON.stringify({ documentId: data.documentId, findings: data.findings, meta: data.meta })
+      );
+      onContinue();
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -304,6 +329,42 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
             >
               Powered by Plaid · 256-bit encrypted
             </span>
+          </div>
+
+          {/* Statement upload (MVP) */}
+          <div className="mt-6 rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid var(--border-subtle)" }}>
+            <div className="text-xs font-semibold mb-2" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
+              Or upload a statement PDF
+            </div>
+            <div className="text-xs mb-3" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+              Upload a PDF statement from your computer. Shadow will scan it and surface potential “Ghost Money”.
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => setStatementFile(e.target.files?.[0] || null)}
+                className="text-xs flex-1"
+                style={{ color: "var(--text-muted)" }}
+              />
+              <Button
+                onClick={handleUpload}
+                disabled={!statementFile || isUploading}
+                className="h-10 px-4 rounded-full text-xs font-bold"
+                style={{
+                  background: statementFile ? "var(--accent-cyan)" : "var(--bg-elevated)",
+                  color: statementFile ? "#FFFFFF" : "var(--text-subtle)",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                {isUploading ? "Uploading..." : "Upload & scan"}
+              </Button>
+            </div>
+            {uploadError && (
+              <div className="mt-2 text-xs" style={{ color: "var(--accent-amber)", fontFamily: "var(--font-body)" }}>
+                {uploadError}
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

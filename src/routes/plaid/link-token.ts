@@ -11,7 +11,7 @@
 // 4. Plaid Link returns a public_token (exchanged for access_token in next step)
 // ============================================================================
 
-import { plaidClient, Products } from "../../lib/plaid";
+import { plaidClient, Products, CountryCode } from "../../lib/plaid";
 
 // Handler function to create a Plaid Link token
 // This is called by the frontend when user clicks "Connect Bank"
@@ -29,7 +29,7 @@ export async function createLinkToken(userId: string = "shadow-user-123") {
     },
     client_name: "Shadow CFO", // Shown in Plaid Link UI
     products: [Products.Transactions], // Request access to transaction data
-    country_codes: ["US"], // US banks only for now
+    country_codes: [CountryCode.Us], // US banks only for now
     language: "en", // English UI
   });
 

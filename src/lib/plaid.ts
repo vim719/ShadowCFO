@@ -6,32 +6,31 @@
 // The client is configured to use the sandbox environment for safe testing.
 // ============================================================================
 
-import { Configuration, PlaidApi, Products, Environment } from "plaid";
+import { Configuration, PlaidApi, Products, PlaidEnvironments, CountryCode } from "plaid";
 
 // Read Plaid credentials from environment variables
 // PLAID_CLIENT_ID: Your Plaid application's client ID (from Plaid Dashboard)
 // PLAID_SECRET: Your Plaid application's secret key (from Plaid Dashboard)
-// PLAID_ENV: Environment to use - 'sandbox' for testing, 'development' or 'production' for live
+// PLAID_ENV: Environment to use - 'sandbox' for testing, 'production' for live
 const clientId = process.env.PLAID_CLIENT_ID!;
 const secret = process.env.PLAID_SECRET!;
-const env = (process.env.PLAID_ENV || "sandbox") as Environment;
+const env = (process.env.PLAID_ENV || "sandbox").toLowerCase();
 
 // Map string environment names to Plaid SDK Environment enum
 // - 'sandbox': Test environment with mock data (no real bank connections)
 // - 'development': Limited production data for development
 // - 'production': Live bank data (requires Plaid approval)
-const environmentMap: Record<string, Environment> = {
-  sandbox: Environment.Sandbox,
-  development: Environment.Development,
-  production: Environment.Production,
-};
+const basePath =
+  env === "production"
+    ? PlaidEnvironments.production
+    : PlaidEnvironments.sandbox;
 
 // Create the Plaid API client instance
 // This client will be used by all Plaid routes to make API calls
 // Configuration includes: clientId, secret, and environment-specific base URL
 export const plaidClient = new PlaidApi(
   new Configuration({
-    basePath: environmentMap[env] || Environment.Sandbox, // Fallback to sandbox if env is invalid
+    basePath, // Fallback to sandbox unless explicitly set to production
     baseOptions: {
       headers: {
         "PLAID-CLIENT-ID": clientId, // Identifies your app to Plaid
@@ -46,4 +45,4 @@ export const plaidClient = new PlaidApi(
 // - 'transactions': Access to transaction history
 // - 'accounts': Access to account balances and details
 // - 'identity': Access to account holder information
-export { Products };
+export { Products, CountryCode };

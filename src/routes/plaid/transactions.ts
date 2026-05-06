@@ -38,7 +38,7 @@ export async function fetchAndStoreTransactions(
   const response = await plaidClient.transactionsGet({
     access_token: accessToken,
     start_date: "2023-01-01", // TODO: Store last_sync date and only fetch new ones
-    end_date: new Date().toISOString().split("T")[0], // Today's date in YYYY-MM-DD
+    end_date: new Date().toISOString().split("T")[0] || new Date().toISOString().slice(0, 10), // YYYY-MM-DD
   });
 
   // Transform Plaid transaction format to our database schema

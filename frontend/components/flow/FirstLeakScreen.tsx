@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Brain, TrendingUp } from "lucide-react";
-import AgentInsightCard, { LeakInsight } from "@/components/shared/AgentInsightCard";
+import AgentInsightCard from "@/components/shared/AgentInsightCard";
+import type { LeakInsight } from "@/components/shared/AgentInsightCard";
 import { Button } from "@/components/ui/button";
 
 interface FirstLeakScreenProps {
@@ -65,13 +66,29 @@ const LEAKS: LeakInsight[] = [
   },
 ];
 
-const TOTAL_MONTHLY = LEAKS.reduce((sum, l) => sum + l.amount, 0);
-const TOTAL_ANNUAL = TOTAL_MONTHLY * 12;
-
 export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps) {
+  const [leaks, setLeaks] = useState<LeakInsight[]>(LEAKS);
   const [fixedIds, setFixedIds] = useState<Set<string>>(new Set());
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("shadowcfo:lastScan");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed?.findings) && parsed.findings.length > 0) {
+        setLeaks(parsed.findings);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const totals = useMemo(() => {
+    const totalMonthly = leaks.reduce((sum, l) => sum + (l.frequency === "monthly" ? l.amount : 0), 0);
+    return { totalMonthly, totalAnnual: totalMonthly * 12 };
+  }, [leaks]);
 
   const handleFix = (id: string) => {
     setFixingId(id);
@@ -85,17 +102,17 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
     setSkippedIds((prev) => new Set([...prev, id]));
   };
 
-  const fixedAmount = LEAKS.filter((l) => fixedIds.has(l.id)).reduce(
+  const fixedAmount = leaks.filter((l) => fixedIds.has(l.id)).reduce(
     (sum, l) => sum + l.amount,
     0
   );
 
-  const remainingLeaks = LEAKS.filter(
+  const remainingLeaks = leaks.filter(
     (l) => !fixedIds.has(l.id) && !skippedIds.has(l.id)
   );
 
   const allActedOn =
-    fixedIds.size + skippedIds.size >= LEAKS.length;
+    fixedIds.size + skippedIds.size >= leaks.length;
 
   return (
     <div
@@ -188,7 +205,7 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
               <>
                 Saving{" "}
                 <span style={{ color: "var(--accent-emerald)" }}>${fixedAmount}/mo</span>
-                {fixedAmount < TOTAL_MONTHLY && (
+                {fixedAmount < totals.totalMonthly && (
                   <span style={{ color: "var(--text-muted)", fontSize: "0.75em" }}>
                     {" "}so far
                   </span>
@@ -198,7 +215,7 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
               <>
                 I found{" "}
                 <span style={{ color: "var(--accent-amber)" }}>
-                  ${TOTAL_MONTHLY}/mo
+                  ${Math.round(totals.totalMonthly)}/mo
                 </span>{" "}
                 leaking
               </>
@@ -207,7 +224,7 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             {allActedOn
               ? "All leaks reviewed. Great work."
-              : `That's $${TOTAL_ANNUAL.toLocaleString()}/year — here's exactly what I found and why:`}
+              : `That's $${Math.round(totals.totalAnnual).toLocaleString()}/year — here's exactly what I found and why:`}
           </p>
         </motion.div>
 
@@ -222,12 +239,12 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
             border: "1px solid var(--border-subtle)",
           }}
         >
-          <div className="flex items-center gap-4">
-            {[
-              { label: "Leaks found", value: `${LEAKS.length}`, color: "var(--accent-amber)" },
-              { label: "Monthly savings", value: `$${TOTAL_MONTHLY}`, color: "var(--accent-emerald)" },
-              { label: "Annual impact", value: `$${TOTAL_ANNUAL}`, color: "var(--accent-cyan)" },
-            ].map((stat) => (
+	          <div className="flex items-center gap-4">
+	            {[
+	            { label: "Leaks found", value: `${leaks.length}`, color: "var(--accent-amber)" },
+	              { label: "Monthly savings", value: `$${Math.round(totals.totalMonthly)}`, color: "var(--accent-emerald)" },
+	              { label: "Annual impact", value: `$${Math.round(totals.totalAnnual)}`, color: "var(--accent-cyan)" },
+	            ].map((stat) => (
               <div key={stat.label}>
                 <div
                   className="text-sm font-bold"
@@ -245,21 +262,21 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
               </div>
             ))}
           </div>
-          {fixedAmount > 0 && (
+	          {fixedAmount > 0 && (
             <div
               className="flex items-center gap-1.5 text-xs font-semibold"
               style={{ color: "var(--accent-emerald)", fontFamily: "var(--font-display)" }}
             >
-              <TrendingUp size={13} />
-              {Math.round((fixedAmount / TOTAL_MONTHLY) * 100)}% fixed
-            </div>
-          )}
+	              <TrendingUp size={13} />
+	              {totals.totalMonthly > 0 ? Math.round((fixedAmount / totals.totalMonthly) * 100) : 0}% fixed
+	            </div>
+	          )}
         </motion.div>
 
         {/* Leak cards */}
         <div className="space-y-3">
           <AnimatePresence>
-            {LEAKS.map((leak, i) => {
+            {leaks.map((leak, i) => {
               const isSkipped = skippedIds.has(leak.id);
               if (isSkipped) return null;
               return (
@@ -370,7 +387,7 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
               Consent ledger — live
             </div>
             {[...fixedIds].map((id) => {
-              const leak = LEAKS.find((l) => l.id === id)!;
+              const leak = leaks.find((l) => l.id === id)!;
               return (
                 <div
                   key={id}
