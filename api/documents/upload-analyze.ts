@@ -137,7 +137,9 @@ function extractTransactionsFromText(text: string): ParsedTransaction[] {
     if (numericDateMatch?.[1]) isoDate = toIsoDate(numericDateMatch[1]);
 
     if (!isoDate) {
-      const monthDay = line.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2})\b/i);
+      // Note: statement lines often look like "Oct 04NETFLIX..." (no space after day),
+      // so we match day digits followed by a non-digit (instead of a word boundary).
+      const monthDay = line.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+(\d{1,2})(?=\D)/i);
       if (monthDay?.[1] && monthDay?.[2] && currentYear) {
         isoDate = toIsoDateFromMonthDay(monthDay[1], monthDay[2], currentYear);
       }
@@ -175,7 +177,7 @@ function extractTransactionsFromText(text: string): ParsedTransaction[] {
     // Build a best-effort "description" by removing date + signed amount + optional category token.
     let core = lineNoBalance;
     if (numericDateMatch?.[0]) core = core.replace(numericDateMatch[0], " ");
-    core = core.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{1,2}\b/i, " ");
+    core = core.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{1,2}(?=\D)/i, " ");
     core = core.replace(amountMatch[0], " ");
     core = core.replace(/\s+/g, " ").trim();
 
