@@ -69,6 +69,7 @@ const LEAKS: LeakInsight[] = [
 export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps) {
   const [leaks, setLeaks] = useState<LeakInsight[]>(LEAKS);
   const [scanInfo, setScanInfo] = useState<{ filename?: string; documentId?: string; transactionsCount?: number } | null>(null);
+  const [docUrl, setDocUrl] = useState<string | null>(null);
   const [fixedIds, setFixedIds] = useState<Set<string>>(new Set());
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
@@ -91,6 +92,25 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!scanInfo?.documentId) return;
+      try {
+        const res = await fetch(`/api/documents/signed-url?documentId=${encodeURIComponent(scanInfo.documentId)}`);
+        const data = await res.json();
+        if (!res.ok) return;
+        if (!cancelled && typeof data?.url === "string") setDocUrl(data.url);
+      } catch {
+        // ignore
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [scanInfo?.documentId]);
 
   const totals = useMemo(() => {
     const totalMonthly = leaks.reduce((sum, l) => sum + (l.frequency === "monthly" ? l.amount : 0), 0);
@@ -237,6 +257,14 @@ export default function FirstLeakScreen({ onBack, onDone }: FirstLeakScreenProps
             <p className="text-xs mt-2" style={{ color: "var(--text-subtle)", fontFamily: "var(--font-body)" }}>
               Uploaded statement: {scanInfo.filename}
               {typeof scanInfo.transactionsCount === "number" ? ` · Parsed ${scanInfo.transactionsCount} rows` : ""}
+              {docUrl ? (
+                <>
+                  {" "}·{" "}
+                  <a href={docUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent-cyan)" }}>
+                    View PDF
+                  </a>
+                </>
+              ) : null}
             </p>
           )}
         </motion.div>

@@ -148,20 +148,42 @@ function extractTransactionsFromText(text: string): ParsedTransaction[] {
     const direction = parseSignedDirection(line);
     if (!direction) continue;
 
-    const amountMatch = line.match(/([+-])\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+    // Capture transaction amount (first signed currency) and strip trailing balance currency if present.
+    const balanceMatch = line.match(/\$([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})?)\s*$/);
+    const lineNoBalance = balanceMatch ? line.slice(0, balanceMatch.index).trim() : line;
+
+    const amountMatch = lineNoBalance.match(/([+-])\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})?)/);
     if (!amountMatch?.[2]) continue;
     const rawAmount = amountMatch[2];
     const amount = parseAmount(rawAmount);
     if (!amount || amount <= 0) continue;
 
-    // Merchant guess: remove date + amount and trim.
-    const merchantGuess = normalizeMerchant(
-      line
-        .replace(numericDateMatch?.[0] ?? "", " ")
-        .replace(rawAmount, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-    );
+    const CATEGORY_TOKENS = [
+      "Entertainment",
+      "Fitness",
+      "Dining",
+      "Food Delivery",
+      "Fees",
+      "Housing",
+      "Auto",
+      "Income",
+      "Transfers",
+      "Shopping",
+      "Travel",
+    ];
+
+    // Build a best-effort "description" by removing date + signed amount + optional category token.
+    let core = lineNoBalance;
+    if (numericDateMatch?.[0]) core = core.replace(numericDateMatch[0], " ");
+    core = core.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{1,2}\b/i, " ");
+    core = core.replace(amountMatch[0], " ");
+    core = core.replace(/\s+/g, " ").trim();
+
+    // Remove a trailing category token if it appears at the end of the remaining core.
+    const categoryToken = CATEGORY_TOKENS.find((t) => core.toLowerCase().endsWith(t.toLowerCase()));
+    if (categoryToken) core = core.slice(0, core.length - categoryToken.length).trim();
+
+    const merchantGuess = normalizeMerchant(core);
     if (!merchantGuess) continue;
 
     txs.push({
@@ -238,6 +260,69 @@ function findZombieSubscriptions(txs: ParsedTransaction[]): LeakInsight[] {
   // Highest impact first
   findings.sort((a, b) => b.amount - a.amount);
   return findings.slice(0, 10);
+}
+
+function monthKey(iso: string) {
+  return iso.slice(0, 7); // YYYY-MM
+}
+
+function findDuplicateSubscriptions(txs: ParsedTransaction[]): LeakInsight[] {
+  // Duplicate: same merchant + same amount appears >=2 times within 5 days.
+  const expenses = txs.filter((t) => t.direction === "expense" && t.amount > 0);
+  const groups = new Map<string, ParsedTransaction[]>();
+  for (const t of expenses) {
+    const key = `${t.merchant}::${t.amount.toFixed(2)}`;
+    const list = groups.get(key) ?? [];
+    list.push(t);
+    groups.set(key, list);
+  }
+
+  const findings: LeakInsight[] = [];
+  for (const [key, list] of groups.entries()) {
+    if (list.length < 2) continue;
+    const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : 1));
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const cur = sorted[i];
+      if (!prev || !cur) continue;
+      const gap = Math.abs(daysBetween(prev.date, cur.date));
+      if (gap <= 5 && monthKey(prev.date) === monthKey(cur.date)) {
+        const [merchant, amount] = key.split("::");
+        if (!merchant || !amount) continue;
+        findings.push({
+          id: `dup-${crypto.createHash("sha1").update(key + prev.date).digest("hex").slice(0, 10)}`,
+          title: `${merchant} charged twice`,
+          amount: Number(amount),
+          frequency: "monthly",
+          confidence: 86,
+          category: "Duplicate Subscription",
+          agentReasoning:
+            "The same merchant and amount appeared more than once within a few days in the same month in the statement you uploaded.",
+          agentEvidence: [prev, cur].map((t) => `${t.date}: $${t.amount} — ${t.rawLine}`),
+          fixDescription:
+            "Educational note: this may be a double-bill or overlapping subscription. If you don’t expect two charges, it’s worth reviewing what each one is tied to.",
+        });
+        break;
+      }
+    }
+  }
+  findings.sort((a, b) => b.amount - a.amount);
+  return findings.slice(0, 5);
+}
+
+function buildFindings(txs: ParsedTransaction[]) {
+  const dup = findDuplicateSubscriptions(txs);
+  const zombies = findZombieSubscriptions(txs);
+  // Prefer duplicates first, then zombies, de-dupe by merchant-ish title.
+  const seen = new Set<string>();
+  const merged: LeakInsight[] = [];
+  for (const f of [...dup, ...zombies]) {
+    const k = f.title.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(f);
+  }
+  return merged;
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
@@ -321,7 +406,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const parsed = await pdf(file);
     const parsedText = parsed.text || "";
     const transactions = extractTransactionsFromText(parsedText);
-    const findings = findZombieSubscriptions(transactions);
+    const findings = buildFindings(transactions);
 
     const updateRes = await supabase
       .from("documents")
