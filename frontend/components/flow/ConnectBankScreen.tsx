@@ -38,25 +38,37 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
   const [isLinkLoading, setIsLinkLoading] = useState(false);
   const [plaidError, setPlaidError] = useState<string | null>(null);
 
+  const createLinkToken = async () => {
+    setIsLinkLoading(true);
+    setPlaidError(null);
+    try {
+      const existingUserId = sessionStorage.getItem("shadowcfo:userId");
+      const res = await fetch("/api/plaid/link-token", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(existingUserId ? { userId: existingUserId } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to create link token");
+      setLinkToken(data.link_token);
+      return data.link_token as string;
+    } catch (e) {
+      setPlaidError(e instanceof Error ? e.message : "Failed to initialize Plaid");
+      return null;
+    } finally {
+      setIsLinkLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      setIsLinkLoading(true);
-      setPlaidError(null);
       try {
-        const existingUserId = sessionStorage.getItem("shadowcfo:userId");
-        const res = await fetch("/api/plaid/link-token", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(existingUserId ? { userId: existingUserId } : {}),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Failed to create link token");
-        if (!cancelled) setLinkToken(data.link_token);
-      } catch (e) {
-        if (!cancelled) setPlaidError(e instanceof Error ? e.message : "Failed to initialize Plaid");
-      } finally {
-        if (!cancelled) setIsLinkLoading(false);
+        const token = await createLinkToken();
+        if (cancelled) return;
+        if (token) setLinkToken(token);
+      } catch {
+        // errors are handled inside createLinkToken
       }
     };
     run();
@@ -111,7 +123,13 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
 
   const handleConnect = () => {
     if (!selected || connected) return;
-    if (!plaidReady || !linkToken) return;
+    if (!linkToken || !plaidReady) {
+      // Plaid might not be ready yet (missing env vars, cold start, etc).
+      // Keep the CTA enabled; trigger token creation and prompt the user to click again.
+      void createLinkToken();
+      setPlaidError((prev) => prev || "Preparing Plaid connection… click Connect Bank again in a moment.");
+      return;
+    }
     openPlaid();
   };
 
@@ -361,7 +379,7 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
                 key="connect-btn"
                 whileTap={{ scale: 0.98 }}
                 onClick={handleConnect}
-                disabled={!selected || isLinkLoading || !plaidReady}
+                disabled={!selected}
                 className="w-full h-14 rounded-full flex items-center justify-center gap-2 text-sm font-bold transition-all duration-200"
                 style={{
                   background: selected ? "var(--accent-cyan)" : "var(--bg-elevated)",
