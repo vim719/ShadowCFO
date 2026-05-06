@@ -114,10 +114,15 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
   }, [onContinue]);
 
   const { open: openPlaid, ready: plaidReady } = usePlaidLink({
-    token: linkToken ?? "",
+    token: linkToken,
     onSuccess: onPlaidSuccess,
     onExit: (err) => {
-      if (err?.display_message) setPlaidError(err.display_message);
+      const msg =
+        err?.display_message ||
+        err?.error_message ||
+        err?.error_code ||
+        (err ? JSON.stringify(err) : null);
+      if (msg) setPlaidError(msg);
     },
   });
 
