@@ -125,11 +125,29 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
               backdropFilter: "blur(8px)",
             }}
           >
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: "var(--accent-cyan)" }}
-            />
-            YOUR SHADOW CFO IS WATCHING
+            <span className="flex items-center gap-2">
+              <span
+                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ background: "var(--accent-cyan)" }}
+              />
+              YOUR SHADOW CFO IS WATCHING
+              <span
+                className="inline-flex items-center gap-1.5 font-bold tracking-[0.16em]"
+                style={{ fontSize: 10, color: "#DC2626", marginLeft: 4 }}
+              >
+                <span
+                  className="inline-block rounded-full"
+                  style={{
+                    width: 6,
+                    height: 6,
+                    background: "#DC2626",
+                    boxShadow: "0 0 0 0 rgba(220,38,38,0.35)",
+                    animation: "shadowcfoLivePulse 1.35s ease-in-out infinite",
+                  }}
+                />
+                LIVE
+              </span>
+            </span>
           </span>
         </motion.div>
 
@@ -141,10 +159,10 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           className="text-display-xl mb-6"
           style={{ color: "var(--text-primary)", position: "relative", zIndex: 10 }}
         >
-          Your accounts are
-          <br />
-          <span style={{ color: "var(--accent-cyan)" }}>
-            bleeding{" "}
+          <span style={{ color: "#0B0F19", fontFamily: "Calibri, var(--font-display)", fontWeight: 700 }}>
+            Your accounts are bleeding{" "}
+          </span>
+          <span style={{ color: "#991B1B", fontFamily: "Calibri, var(--font-display)", fontWeight: 800 }}>
             <CounterAnimation target={347} prefix="$" suffix="/mo" duration={2400} />
           </span>
         </motion.h1>
@@ -173,17 +191,18 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           <Button
             size="lg"
             onClick={onGetStarted}
-            className="font-bold text-base h-14 px-9 rounded-full transition-all hover:scale-[1.03] active:scale-[0.98]"
+            className="font-bold text-base h-14 px-10 rounded-full transition-transform active:scale-[0.98]"
             style={{
               background: "var(--accent-cyan)",
               color: "#FFFFFF",
-              fontFamily: "var(--font-display)",
-              boxShadow: "0 10px 30px rgba(0,112,243,0.25)",
+              fontFamily: "Calibri, var(--font-display)",
+              boxShadow: "0 12px 34px rgba(0,112,243,0.22)",
               height: "3.75rem",
+              fontSize: "1.05rem",
             }}
             aria-label="Get started and see leaks"
           >
-            See What I Found
+            See it in Action
             <ArrowRight size={20} />
           </Button>
           <Button
@@ -203,6 +222,14 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             How it works
           </Button>
         </motion.div>
+
+        <style>{`
+          @keyframes shadowcfoLivePulse {
+            0% { transform: scale(1); opacity: 0.75; box-shadow: 0 0 0 0 rgba(220,38,38,0.35); }
+            50% { transform: scale(1.06); opacity: 1; box-shadow: 0 0 0 8px rgba(220,38,38,0); }
+            100% { transform: scale(1); opacity: 0.75; box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+          }
+        `}</style>
 
         {/* Trust strip */}
         <motion.div
