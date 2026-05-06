@@ -443,39 +443,95 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
           )}
 
           {/* Statement upload (MVP) */}
-          <div className="mt-6 rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid var(--border-subtle)" }}>
-            <div className="text-xs font-semibold mb-2" style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
-              Or upload a statement PDF
+          <div
+            className="mt-6 rounded-3xl px-5 py-4"
+            style={{
+              background: "rgba(255,255,255,0.9)",
+              border: "1px solid var(--border-subtle)",
+              boxShadow: "0 14px 34px rgba(0,0,0,0.035)",
+            }}
+          >
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <div className="h-px flex-1" style={{ background: "var(--border-subtle)" }} />
+              <div
+                className="text-[11px] font-bold tracking-[0.22em]"
+                style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}
+              >
+                OR
+              </div>
+              <div className="h-px flex-1" style={{ background: "var(--border-subtle)" }} />
             </div>
-            <div className="text-xs mb-3" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
-              Upload a PDF statement from your computer. Shadow will scan it and surface potential “Ghost Money”.
+
+            <div className="text-xs leading-relaxed mb-4" style={{ color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+              <div style={{ paddingLeft: 2 }}>Upload a PDF statement from your computer</div>
+              <div style={{ paddingLeft: 2 }}>
+                ShadowCFO will scan it and surface potential “Ghost Money”.
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setStatementFile(e.target.files?.[0] || null)}
-                className="text-xs flex-1"
-                style={{ color: "var(--text-muted)" }}
-              />
+
+            <input
+              id="shadowcfo-statement-upload"
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setStatementFile(e.target.files?.[0] || null)}
+              style={{ display: "none" }}
+            />
+
+            <div className="flex items-center justify-between gap-3">
+              <label
+                htmlFor="shadowcfo-statement-upload"
+                className="select-none"
+                style={{ cursor: "pointer" }}
+              >
+                <span
+                  className="text-sm font-bold"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    letterSpacing: "-0.01em",
+                    background: "linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald), var(--accent-cyan))",
+                    backgroundSize: "220% 100%",
+                    WebkitBackgroundClip: "text",
+                    backgroundClip: "text",
+                    color: "transparent",
+                    display: "inline-block",
+                    animation: "shadowcfoTextGlow 2.6s ease-in-out infinite",
+                  }}
+                >
+                  Click to Upload
+                </span>
+                <div className="text-[11px] mt-1" style={{ color: "var(--text-subtle)", fontFamily: "var(--font-body)" }}>
+                  {statementFile ? statementFile.name : "PDF only"}
+                </div>
+              </label>
+
               <Button
                 onClick={handleUpload}
                 disabled={!statementFile || isUploading}
-                className="h-10 px-4 rounded-full text-xs font-bold"
+                className="h-11 px-5 rounded-full text-xs font-bold"
                 style={{
                   background: statementFile ? "var(--accent-cyan)" : "var(--bg-elevated)",
                   color: statementFile ? "#FFFFFF" : "var(--text-subtle)",
                   fontFamily: "var(--font-display)",
+                  boxShadow: statementFile ? "0 10px 25px rgba(0,112,243,0.18)" : "none",
                 }}
               >
                 {isUploading ? "Uploading..." : "Upload & scan"}
               </Button>
             </div>
+
             {uploadError && (
-              <div className="mt-2 text-xs" style={{ color: "var(--accent-amber)", fontFamily: "var(--font-body)" }}>
+              <div className="mt-3 text-xs text-center" style={{ color: "var(--accent-amber)", fontFamily: "var(--font-body)" }}>
                 {uploadError}
               </div>
             )}
+
+            <style>{`
+              @keyframes shadowcfoTextGlow {
+                0% { background-position: 0% 50%; filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+                50% { background-position: 100% 50%; filter: drop-shadow(0 8px 18px rgba(0,112,243,0.12)); }
+                100% { background-position: 0% 50%; filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+              }
+            `}</style>
           </div>
         </motion.div>
       </div>
