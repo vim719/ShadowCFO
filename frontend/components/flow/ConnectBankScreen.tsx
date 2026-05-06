@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ChevronLeft, Lock, FileText, Zap, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePlaidLink } from "react-plaid-link";
 
 interface ConnectBankScreenProps {
   onContinue: () => void;
@@ -29,20 +30,79 @@ const TRUST_SIGNALS = [
 
 export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScreenProps) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [statementFile, setStatementFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [isLinkLoading, setIsLinkLoading] = useState(false);
+  const [plaidError, setPlaidError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIsLinkLoading(true);
+      setPlaidError(null);
+      try {
+        const res = await fetch("/api/plaid/link-token", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Failed to create link token");
+        if (!cancelled) setLinkToken(data.link_token);
+      } catch (e) {
+        if (!cancelled) setPlaidError(e instanceof Error ? e.message : "Failed to initialize Plaid");
+      } finally {
+        if (!cancelled) setIsLinkLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onPlaidSuccess = useMemo(() => {
+    return async (publicToken: string, metadata: any) => {
+      try {
+        setPlaidError(null);
+        const institutionName = metadata?.institution?.name;
+        const institutionId = metadata?.institution?.institution_id;
+        const accountId = metadata?.accounts?.[0]?.id;
+        const exchangeRes = await fetch("/api/plaid/exchange", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ publicToken, institutionName, institutionId, accountId }),
+        });
+        const exchangeData = await exchangeRes.json();
+        if (!exchangeRes.ok) throw new Error(exchangeData?.error || "Token exchange failed");
+
+        const txRes = await fetch("/api/plaid/transactions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ bankConnectionId: exchangeData.bankConnectionId }),
+        });
+        const txData = await txRes.json();
+        if (!txRes.ok) throw new Error(txData?.error || "Transaction sync failed");
+
+        setConnected(true);
+        onContinue();
+      } catch (e) {
+        setPlaidError(e instanceof Error ? e.message : "Plaid connection failed");
+      }
+    };
+  }, [onContinue]);
+
+  const { open: openPlaid, ready: plaidReady } = usePlaidLink({
+    token: linkToken ?? "",
+    onSuccess: onPlaidSuccess,
+    onExit: (err) => {
+      if (err?.display_message) setPlaidError(err.display_message);
+    },
+  });
 
   const handleConnect = () => {
-    if (!selected || isConnecting || connected) return;
-    setIsConnecting(true);
-    setTimeout(() => {
-      setIsConnecting(false);
-      setConnected(true);
-      setTimeout(onContinue, 900);
-    }, 1800);
+    if (!selected || connected) return;
+    if (!plaidReady || !linkToken) return;
+    openPlaid();
   };
 
   const handleUpload = async () => {
@@ -285,7 +345,7 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
                 key="connect-btn"
                 whileTap={{ scale: 0.98 }}
                 onClick={handleConnect}
-                disabled={!selected || isConnecting}
+                disabled={!selected || isLinkLoading || !plaidReady}
                 className="w-full h-14 rounded-full flex items-center justify-center gap-2 text-sm font-bold transition-all duration-200"
                 style={{
                   background: selected ? "var(--accent-cyan)" : "var(--bg-elevated)",
@@ -296,14 +356,14 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
                   border: selected ? "none" : "1px solid var(--border-subtle)",
                 }}
               >
-                {isConnecting ? (
+                {isLinkLoading ? (
                   <>
                     <motion.span
                       animate={{ rotate: 360 }}
                       transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
                       className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full"
                     />
-                    Connecting securely...
+                    Preparing secure connection...
                   </>
                 ) : (
                   <>
@@ -330,6 +390,12 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
               Powered by Plaid · 256-bit encrypted
             </span>
           </div>
+
+          {plaidError && (
+            <div className="mt-3 text-xs text-center" style={{ color: "var(--accent-amber)", fontFamily: "var(--font-body)" }}>
+              {plaidError}
+            </div>
+          )}
 
           {/* Statement upload (MVP) */}
           <div className="mt-6 rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid var(--border-subtle)" }}>
