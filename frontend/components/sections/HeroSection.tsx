@@ -159,10 +159,26 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           className="text-display-xl mb-6"
           style={{ color: "var(--text-primary)", position: "relative", zIndex: 10 }}
         >
-          <span style={{ color: "#0B0F19", fontFamily: "Calibri, var(--font-display)", fontWeight: 700 }}>
+          <span
+            style={{
+              color: "rgb(0, 0, 0)",
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              letterSpacing: "-0.04em",
+              lineHeight: 1.05,
+            }}
+          >
             Your accounts are bleeding{" "}
           </span>
-          <span style={{ color: "#991B1B", fontFamily: "Calibri, var(--font-display)", fontWeight: 800 }}>
+          <span
+            style={{
+              color: "rgb(232, 42, 7)",
+              fontFamily: "var(--font-display)",
+              fontWeight: 900,
+              letterSpacing: "-0.04em",
+              lineHeight: 1.05,
+            }}
+          >
             <CounterAnimation target={347} prefix="$" suffix="/mo" duration={2400} />
           </span>
         </motion.h1>
@@ -193,16 +209,30 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             onClick={onGetStarted}
             className="font-bold text-base h-14 px-10 rounded-full transition-transform active:scale-[0.98]"
             style={{
-              background: "var(--accent-cyan)",
+              background: "rgb(0, 112, 243)",
               color: "#FFFFFF",
-              fontFamily: "Calibri, var(--font-display)",
-              boxShadow: "0 12px 34px rgba(0,112,243,0.22)",
+              fontFamily: "var(--font-display)",
+              boxShadow: "0 12px 34px rgba(0,112,243,0.24)",
               height: "3.75rem",
               fontSize: "1.05rem",
             }}
             aria-label="Get started and see leaks"
           >
-            See it in Action
+            <span
+              style={{
+                background:
+                  "linear-gradient(90deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,1) 45%, rgba(255,255,255,0.55) 100%)",
+                backgroundSize: "220% 100%",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+                animation: "shadowcfoWhiteSweep 2.2s ease-in-out infinite",
+                display: "inline-block",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              See it in Action
+            </span>
             <ArrowRight size={20} />
           </Button>
           <Button
@@ -228,6 +258,11 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             0% { transform: scale(1); opacity: 0.75; box-shadow: 0 0 0 0 rgba(220,38,38,0.35); }
             50% { transform: scale(1.06); opacity: 1; box-shadow: 0 0 0 8px rgba(220,38,38,0); }
             100% { transform: scale(1); opacity: 0.75; box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+          }
+          @keyframes shadowcfoWhiteSweep {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
           }
         `}</style>
 
