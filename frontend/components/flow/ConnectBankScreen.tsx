@@ -127,7 +127,11 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
   });
 
   const handleConnect = () => {
-    if (!selected || connected) return;
+    if (connected) return;
+    if (!selected) {
+      setPlaidError("Select a bank first.");
+      return;
+    }
     if (!linkToken || !plaidReady) {
       // Plaid might not be ready yet (missing env vars, cold start, etc).
       // Keep the CTA enabled; trigger token creation and prompt the user to click again.
@@ -287,6 +291,7 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
                 <motion.button
                   key={bank.id}
                   whileTap={{ scale: 0.96 }}
+                  type="button"
                   onClick={() => !bank.isMore && setSelected(bank.id)}
                   aria-label={`Select ${bank.name}`}
                   aria-pressed={isSelected}
@@ -383,15 +388,16 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
               <motion.button
                 key="connect-btn"
                 whileTap={{ scale: 0.98 }}
+                type="button"
                 onClick={handleConnect}
-                disabled={!selected}
+                disabled={false}
                 className="w-full h-14 rounded-full flex items-center justify-center gap-2 text-sm font-bold transition-all duration-200"
                 style={{
                   background: selected ? "var(--accent-cyan)" : "var(--bg-elevated)",
                   color: selected ? "#FFFFFF" : "var(--text-subtle)",
                   fontFamily: "var(--font-display)",
                   boxShadow: selected ? "0 10px 25px rgba(0,112,243,0.2)" : "none",
-                  cursor: selected ? "pointer" : "not-allowed",
+                  cursor: "pointer",
                   border: selected ? "none" : "1px solid var(--border-subtle)",
                 }}
               >
