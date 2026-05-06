@@ -44,7 +44,12 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
       setIsLinkLoading(true);
       setPlaidError(null);
       try {
-        const res = await fetch("/api/plaid/link-token", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+        const existingUserId = sessionStorage.getItem("shadowcfo:userId");
+        const res = await fetch("/api/plaid/link-token", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(existingUserId ? { userId: existingUserId } : {}),
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to create link token");
         if (!cancelled) setLinkToken(data.link_token);
@@ -64,21 +69,26 @@ export default function ConnectBankScreen({ onContinue, onBack }: ConnectBankScr
     return async (publicToken: string, metadata: any) => {
       try {
         setPlaidError(null);
+        const existingUserId = sessionStorage.getItem("shadowcfo:userId");
         const institutionName = metadata?.institution?.name;
         const institutionId = metadata?.institution?.institution_id;
         const accountId = metadata?.accounts?.[0]?.id;
         const exchangeRes = await fetch("/api/plaid/exchange", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ publicToken, institutionName, institutionId, accountId }),
+          body: JSON.stringify({ publicToken, institutionName, institutionId, accountId, userId: existingUserId || undefined }),
         });
         const exchangeData = await exchangeRes.json();
         if (!exchangeRes.ok) throw new Error(exchangeData?.error || "Token exchange failed");
 
+        if (typeof exchangeData?.userId === "string") {
+          sessionStorage.setItem("shadowcfo:userId", exchangeData.userId);
+        }
+
         const txRes = await fetch("/api/plaid/transactions", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ bankConnectionId: exchangeData.bankConnectionId }),
+          body: JSON.stringify({ bankConnectionId: exchangeData.bankConnectionId, userId: exchangeData.userId }),
         });
         const txData = await txRes.json();
         if (!txRes.ok) throw new Error(txData?.error || "Transaction sync failed");

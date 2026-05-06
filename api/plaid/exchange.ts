@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import crypto from "node:crypto";
 import { Configuration, PlaidApi, PlaidEnvironments } from "plaid";
 import { createClient } from "@supabase/supabase-js";
 
@@ -48,6 +49,27 @@ async function readJson(req: IncomingMessage) {
   });
 }
 
+async function ensureUserId(supabase: any, userId: string | null) {
+  if (userId) return userId;
+
+  // Prototype mode: create an ephemeral Supabase Auth user so `bank_connections.user_id` (NOT NULL FK)
+  // is satisfied even when the app has no login flow yet.
+  const email = `anon+${crypto.randomUUID()}@shadowcfo.local`;
+  const password = crypto.randomBytes(18).toString("base64url");
+
+  const created = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+
+  if (created.error || !created.data?.user?.id) {
+    throw new Error(`Supabase createUser failed: ${created.error?.message || "unknown error"}`);
+  }
+
+  return created.data.user.id;
+}
+
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   try {
     if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
@@ -69,6 +91,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const ensuredUserId = await ensureUserId(supabase, userId);
+
     const plaid = getPlaidClient();
     const exchange = await plaid.itemPublicTokenExchange({ public_token: publicToken });
     const accessToken = exchange.data.access_token;
@@ -79,7 +103,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const insert = await supabase
       .from("bank_connections")
       .insert({
-        user_id: userId,
+        user_id: ensuredUserId,
         access_token_encrypted: accessToken,
         item_id: itemId,
         institution_name: typeof institutionName === "string" ? institutionName : null,
@@ -93,10 +117,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
     if (insert.error) throw new Error(`Supabase insert failed: ${insert.error.message}`);
 
-    return json(res, 200, { bankConnectionId: insert.data.id, itemId: insert.data.item_id });
+    return json(res, 200, { bankConnectionId: insert.data.id, itemId: insert.data.item_id, userId: ensuredUserId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return json(res, 500, { error: message });
   }
 }
-
