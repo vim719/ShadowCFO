@@ -160,26 +160,43 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           style={{ color: "var(--text-primary)", position: "relative", zIndex: 10 }}
         >
           <span
+            className="block"
             style={{
               color: "rgb(0, 0, 0)",
               fontFamily: "var(--font-display)",
-              fontWeight: 800,
-              letterSpacing: "-0.04em",
-              lineHeight: 1.05,
+              fontWeight: 900,
+              letterSpacing: "-0.045em",
+              lineHeight: 1.02,
             }}
           >
-            Your accounts are bleeding{" "}
+            Your accounts
           </span>
           <span
+            className="block"
             style={{
-              color: "rgb(232, 42, 7)",
+              color: "rgb(0, 0, 0)",
+              fontFamily: "var(--font-display)",
+              fontWeight: 900,
+              letterSpacing: "-0.045em",
+              lineHeight: 1.02,
+              marginTop: "0.18em",
+            }}
+          >
+            are bleeding
+          </span>
+          <span
+            className="block"
+            style={{
+              color: "rgb(255, 0, 0)",
               fontFamily: "var(--font-display)",
               fontWeight: 900,
               letterSpacing: "-0.04em",
-              lineHeight: 1.05,
+              lineHeight: 1,
+              marginTop: "0.22em",
+              fontSize: "1.2em",
             }}
           >
-            <CounterAnimation target={347} prefix="$" suffix="/mo" duration={2400} />
+            <CounterAnimation target={347} prefix="$" suffix="/month" duration={2400} />
           </span>
         </motion.h1>
 
@@ -209,10 +226,10 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             onClick={onGetStarted}
             className="font-bold text-base h-14 px-10 rounded-full transition-transform active:scale-[0.98]"
             style={{
-              background: "rgb(0, 112, 243)",
+              background: "rgb(0, 17, 255)",
               color: "#FFFFFF",
               fontFamily: "var(--font-display)",
-              boxShadow: "0 12px 34px rgba(0,112,243,0.24)",
+              boxShadow: "0 14px 36px rgba(0,17,255,0.22)",
               height: "3.75rem",
               fontSize: "1.05rem",
             }}
@@ -233,7 +250,9 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             >
               See it in Action
             </span>
-            <ArrowRight size={20} />
+            <span style={{ display: "inline-flex", alignItems: "center", animation: "shadowcfoArrowSweep 2.2s ease-in-out infinite" }}>
+              <ArrowRight size={20} />
+            </span>
           </Button>
           <Button
             variant="ghost"
@@ -263,6 +282,11 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
+          }
+          @keyframes shadowcfoArrowSweep {
+            0% { opacity: 0.65; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(0); }
+            50% { opacity: 1; filter: drop-shadow(0 10px 22px rgba(255,255,255,0.18)); transform: translateX(1px); }
+            100% { opacity: 0.65; filter: drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(0); }
           }
         `}</style>
 

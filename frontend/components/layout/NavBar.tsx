@@ -45,10 +45,23 @@ export default function NavBar({ onGetStarted }: NavBarProps) {
           onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
         >
           <span
-            className="font-black text-2xl tracking-tighter uppercase"
-            style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+            className="flex items-center gap-2"
+            style={{ color: "var(--text-primary)" }}
           >
-            Shadow CFO
+            <span
+              aria-hidden="true"
+              className="inline-flex flex-col justify-center gap-1"
+              style={{ width: 14, marginTop: 1 }}
+            >
+              <span style={{ height: 2, borderRadius: 999, background: "var(--text-primary)", opacity: 0.9 }} />
+              <span style={{ height: 2, borderRadius: 999, background: "var(--text-primary)", opacity: 0.65, width: 10 }} />
+            </span>
+            <span
+              className="font-bold tracking-tight uppercase"
+              style={{ fontFamily: "var(--font-body)", fontSize: "1.1rem", fontStyle: "normal" }}
+            >
+              Shadow CFO
+            </span>
           </span>
         </a>
 
@@ -66,7 +79,22 @@ export default function NavBar({ onGetStarted }: NavBarProps) {
                 el?.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              {link.label}
+              <span className="inline-flex flex-col items-center">
+                <span>{link.label}</span>
+                {link.label === "How it works" && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      marginTop: 3,
+                      height: 1,
+                      width: "100%",
+                      background: "rgb(255, 111, 0)",
+                      opacity: 0.9,
+                      borderRadius: 999,
+                    }}
+                  />
+                )}
+              </span>
             </a>
           ))}
         </div>
